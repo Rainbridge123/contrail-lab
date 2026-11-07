@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="在三维空域中回放 CS5446 v5 合成场景，查看 96 架飞机的航路与热点避让。" data-i18n-content="description">
+  <title>Contrail Lab · v5 空域回放</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <div class="brand">
+        <svg class="brand-icon" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+          <rect x="1" y="1" width="34" height="34" rx="9" fill="currentColor" fill-opacity=".09" stroke="currentColor" stroke-opacity=".26"/>
+          <path d="M8 23.5 27 11l-8.5 16-2-6.5-8.5 3Z" stroke="currentColor" stroke-width="1.65" stroke-linejoin="round"/>
+          <path d="M16.5 20.5 27 11" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/>
+        </svg>
+        <div><span class="wordmark">Contrail Lab</span><span class="brand-detail" data-i18n="brandDetail">CS5446 · 场景浏览器</span></div>
+      </div>
+      <div class="masthead-actions">
+        <div class="source-tag"><span class="source-dot"></span><span data-i18n="sourceTag">v5 合成场景</span><span class="seed mono" data-i18n="seedTag">种子 10000</span></div>
+        <div class="language-switch" role="group" aria-label="界面语言" data-i18n-aria-label="languageGroup">
+          <button type="button" data-language="zh" lang="zh-Hans" aria-label="中文" aria-pressed="true">中文</button>
+          <button type="button" data-language="en" lang="en" aria-label="English" aria-pressed="false">EN</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main class="shell">
+    <div class="intro">
+      <div>
+        <p class="eyebrow" data-i18n="benchmark">基准 V5 / 01</p>
+        <h1 data-i18n="heading">交叉空域回放</h1>
+        <p class="subtitle" data-i18n="subtitle">在同一时刻切换方案，观察热点避让与机队协调如何改变轨迹。</p>
+      </div>
+      <div class="plan-panel">
+        <div class="plan-heading">
+          <span class="section-label" data-i18n="complexityLabel">整场交通复杂度 Ψ（秒）</span>
+          <span id="psi-delta" class="psi-delta mono">P₀ 基准</span>
+        </div>
+        <div class="scheme" role="group" aria-label="飞行方案及整场交通复杂度" data-i18n-aria-label="plansGroup">
+          <button id="mode-b0" data-mode="B0" type="button" aria-pressed="true"><span data-i18n="planB0">P₀ 初始</span><span class="scheme-psi mono">—</span></button>
+          <button id="mode-b1" data-mode="B1" type="button" aria-pressed="false"><span data-i18n="planB1">B1 避让</span><span class="scheme-psi mono">—</span></button>
+          <button id="mode-b2" data-mode="B2" type="button" aria-pressed="false"><span data-i18n="planB2">B2 协调</span><span class="scheme-psi mono">—</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="workspace">
+      <section class="stage" aria-label="三维空域" data-i18n-aria-label="stageLabel">
+        <div id="scene" class="scene"></div>
+        <div class="stage-top">
+          <div class="stage-badge"><span class="frame-corner" aria-hidden="true"></span><span data-i18n="stageLabel">三维空域</span></div>
+          <div class="camera" role="group" aria-label="相机视角" data-i18n-aria-label="cameraGroup">
+            <button type="button" data-camera="orbit" aria-pressed="true" data-i18n="cameraOrbit" title="三维环绕视角" data-i18n-title="cameraOrbitTitle">三维</button>
+            <button type="button" data-camera="top" aria-pressed="false" data-i18n="cameraTop" title="从上方查看空域" data-i18n-title="cameraTopTitle">俯视</button>
+            <button type="button" data-camera="profile" aria-pressed="false" data-i18n="cameraProfile" title="从侧面查看空域" data-i18n-title="cameraProfileTitle">侧视</button>
+          </div>
+        </div>
+        <p id="load-message" class="load-message" role="status"><span data-i18n="loadingScene">正在载入场景…</span></p>
+        <div class="stage-bottom">
+          <div class="stage-keys">
+            <ul class="legend" aria-label="图例" data-i18n-aria-label="legendLabel">
+              <li><span class="key box-key"></span><span data-i18n="legendBounds">显示边界</span></li>
+              <li><span class="key route-key"></span><span data-i18n="legendRoute">航线</span></li>
+              <li><span class="key plane-key"></span><span data-i18n="legendUnchanged">未改</span></li>
+              <li><span class="key hotspot-key"></span><span data-i18n="legendHotspot">热点</span></li>
+            </ul>
+            <div class="change-filters" role="group" aria-label="按相对 P₀ 的调整筛选飞机" data-i18n-aria-label="filtersGroup">
+              <span class="change-caption" data-i18n="relativeToP0">相对 P₀</span>
+              <button type="button" data-change-filter="all" aria-pressed="true"><span data-i18n="filterAll">全部</span> <span class="change-count mono">—</span></button>
+              <button type="button" data-change-filter="altitude" aria-pressed="false"><span class="change-dot"></span><span data-i18n="filterAltitude">仅高度</span> <span class="change-count mono">—</span></button>
+              <button type="button" data-change-filter="speed" aria-pressed="false"><span class="change-dot"></span><span data-i18n="filterSpeed">仅 Mach</span> <span class="change-count mono">—</span></button>
+              <button type="button" data-change-filter="both" aria-pressed="false" title="高度和 Mach 都有变化" data-i18n-title="filterBothTitle"><span class="change-dot"></span><span data-i18n="filterBoth">两项</span> <span class="change-count mono">—</span></button>
+            </div>
+          </div>
+          <span class="orbit-hint" data-i18n="orbitHint">拖动旋转 · 右键平移 · 滚动缩放</span>
+        </div>
+      </section>
+
+      <section class="timeline" aria-label="仿真时间轴" data-i18n-aria-label="timelineLabel">
+        <div class="timeline-head">
+          <div class="playback">
+            <button type="button" id="play" class="play-button" aria-label="播放" data-i18n-aria-label="playAction" disabled>
+              <svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+              <svg class="pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14m8-14v14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+            </button>
+            <div class="clock-wrap">
+              <span class="section-label" data-i18n="simulationTime">仿真时间</span>
+              <div class="mono clock"><output id="time-readout" for="time-range">00:43:56</output> <span id="time-max">/ 02:03:31</span></div>
+            </div>
+          </div>
+          <label class="speed-control" for="speed"><span data-i18n="playbackRate">播放倍率</span>
+            <select id="speed"><option value="30">30×</option><option value="60" selected>60×</option><option value="120">120×</option><option value="300">300×</option></select>
+          </label>
+        </div>
+        <div class="scrub">
+          <label class="sr-only" for="time-range" data-i18n="simulationTime">仿真时间</label>
+          <input type="range" id="time-range" min="0" max="7411" step="1" value="2636" disabled>
+          <div id="ticks" class="ticks mono" aria-hidden="true"></div>
+        </div>
+        <div class="timeline-foot"><span><span class="entry-mark"></span><span data-i18n="entryWindow">入场窗口 00:00–01:00</span></span><span data-i18n="sceneTimeHint">时间从场景开始计</span></div>
+      </section>
+
+      <aside class="inspector" aria-label="飞机与场景信息" data-i18n-aria-label="inspectorLabel">
+        <section class="flight-section">
+          <div class="section-head">
+            <span class="section-label" data-i18n="aircraftDetails">飞机详情</span>
+            <label for="aircraft-select" class="sr-only" data-i18n="selectAircraft">选择飞机</label>
+            <select id="aircraft-select" disabled><option data-i18n="loadingAircraft">正在载入</option></select>
+          </div>
+          <div class="flight-identity">
+            <div><h2 id="flight-title">飞机 #53</h2><p id="flight-meta" class="subtle">A320 · 045° 航路</p></div>
+            <span id="flight-status" class="flight-status">—</span>
+          </div>
+          <dl class="flight-metrics">
+            <div><dt data-i18n="currentAltitude">当前高度</dt><dd id="altitude" class="mono">—</dd></div>
+            <div><dt data-i18n="machSpeed">速度（Mach）</dt><dd id="mach" class="mono">—</dd></div>
+            <div><dt data-i18n="segmentFuel">航段燃油</dt><dd id="fuel" class="mono">—</dd></div>
+            <div><dt data-i18n="segmentTime">航段用时</dt><dd id="flight-time" class="mono">—</dd></div>
+          </dl>
+          <div class="flight-adjustment" aria-label="相对 P₀ 的轨迹调整" data-i18n-aria-label="adjustmentLabel">
+            <span data-i18n="relativeToP0">相对 P₀</span>
+            <strong id="altitude-offset" class="mono">—</strong>
+            <strong id="mach-offset" class="mono">—</strong>
+          </div>
+          <div class="route-outcome"><span id="outcome-dot" class="outcome-dot"></span><span id="outcome">全程热点暴露</span></div>
+        </section>
+        <section class="scene-stats" aria-label="机队统计" data-i18n-aria-label="fleetStats">
+          <h2 class="section-label" data-i18n="fleetStats">机队统计</h2>
+          <dl>
+            <div><dt data-i18n="airborneNow">当前在空中</dt><dd id="airborne" class="mono">—</dd></div>
+            <div><dt data-i18n="inHotspotsNow">当前在热点内</dt><dd id="in-hotspots" class="mono">—</dd></div>
+            <div><dt data-i18n="totalExposed">全程触碰热点</dt><dd id="total-exposed" class="mono">—</dd></div>
+            <div><dt data-i18n="totalChanged">全程调整飞机</dt><dd id="total-changed" class="mono">—</dd></div>
+          </dl>
+        </section>
+        <p class="scale-note"><span aria-hidden="true">↕</span> <span class="scale-note-copy" data-i18n="scaleNote">线框标示显示范围，高度和飞机图标已放大。</span></p>
+      </aside>
+    </div>
+    <footer class="page-foot"><span data-i18n="footerCourse">CS5446 · 凝结尾迹避让</span><span data-i18n="footerScene">v5 · 96 架 A320 · 4 条航线 · 4 个静态热点</span></footer>
+  </main>
+</body>
+</html>
