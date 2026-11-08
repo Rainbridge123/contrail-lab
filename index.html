@@ -8,9 +8,9 @@
   <title>Contrail Lab · v5 空域回放</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css?v=wide1">
-  <link rel="stylesheet" href="./lecture.css?v=selection2">
+  <link rel="stylesheet" href="./lecture.css?v=picker3">
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
-  <script type="module" src="./app.js?v=selection2"></script>
+  <script type="module" src="./app.js?v=picker3"></script>
 
 </head>
 <body>
@@ -169,7 +169,7 @@
             </button><div class="mono clock"><output id="time-readout" for="time-range">00:43:56</output><span id="time-max">/ 02:08:34</span></div></div>
         <div class="scrub"><label class="sr-only" for="time-range" data-i18n="simulationTime">仿真时间</label><input type="range" id="time-range" min="0" max="7714" step="1" value="2636" disabled><div id="ticks" class="ticks mono" aria-hidden="true"></div></div>
         <label class="speed-control" for="speed"><span data-i18n="playbackRate">播放倍率</span>
-            <select id="speed"><option value="30">30×</option><option value="60" selected>60×</option><option value="120">120×</option><option value="300">300×</option></select>
+            <select id="speed"><option value="1">1×</option><option value="10">10×</option><option value="30">30×</option><option value="60" selected>60×</option><option value="120">120×</option><option value="300">300×</option></select>
           </label>
       </section>
     </div>

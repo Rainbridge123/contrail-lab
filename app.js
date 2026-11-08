@@ -1,7 +1,7 @@
 import { referenceFlight } from './reference-flight.js?v=1';
 import { createPlaybackControls } from './playback-controls.js?v=initiallevels1';
-import { createSetupControls } from './setup-controls.js?v=sectionpresets1';
-import { createViewer } from "./viewer.js?v=selection2";
+import { createSetupControls } from './setup-controls.js?v=picker3';
+import { createViewer } from "./viewer.js?v=picker3";
 import { createAircraftPreview } from "./aircraft-model.js?v=pptaircraft1";
 import { applyLanguage, setLanguage, t as translate } from "./i18n.js?v=nestedlayers1";
 
@@ -164,32 +164,35 @@ function start(data) {
   sharedSelect.addEventListener('change',()=>{selectAircraft(sharedSelect.value);setInspectorOpen(false);});
   let aircraftScope = 'changed', chooserKey = '';
   const scopeSelect = document.createElement('select'); scopeSelect.id = 'aircraft-scope';
-  sharedLabel.before(scopeSelect);
+  const aircraftPicker=document.createElement('div');aircraftPicker.className='aircraft-picker';
+  const actionLabel=document.createElement('label');actionLabel.className='aircraft-action-label';
+  const actionText=document.createElement('span');actionLabel.append(actionText,scopeSelect);
+  sharedLabel.before(aircraftPicker);aircraftPicker.append(actionLabel,sharedLabel);
   function scopedAircraft() {
     if (view === 'setup' || aircraftScope === 'all') return aircraft;
     const keys = view === 'compare' ? comparisonKeys() : [mode];
+    if (aircraftScope === 'none') return aircraft.filter(a=>keys.every(key=>a.plans[key]?.change==='none'));
     return aircraft.filter(a => keys.some(key => {
       const change = a.plans[key]?.change;
-      return aircraftScope === 'altitude' ? ['altitude','both'].includes(change)
-        : aircraftScope === 'speed' ? change === 'speed' : change && change !== 'none';
+      return aircraftScope === 'changed' ? change && change !== 'none' : change === aircraftScope;
     }));
   }
   function syncAircraftChooser() {
     const en = document.documentElement.lang.startsWith('en');
-    scopeSelect.hidden = view === 'setup';
+    actionLabel.hidden = view === 'setup';
+    actionText.textContent=en?'Action':'动作';
+    sharedText.textContent=en?'Aircraft ID':'飞机编号';
     const key = [view, mode, comparisonMethod, aircraftScope, en].join(':');
     const listed = scopedAircraft();
     if (key !== chooserKey) {
       chooserKey = key;
       scopeSelect.setAttribute('aria-label',en?'Aircraft filter relative to P₀':'按相对 P₀ 的变化筛选飞机');
-      scopeSelect.replaceChildren(...[['changed',en?'Changed':'有调整'],['altitude',en?'Altitude changed':'高度有变化'],['speed',en?'Speed only':'仅速度变化'],['all',en?'All aircraft':'全部飞机']].map(([value,text])=>{
+      scopeSelect.replaceChildren(...[['changed',en?'Any change':'全部调整'],['altitude',en?'Altitude only':'仅调整高度'],['speed',en?'Speed only':'仅调整速度'],['both',en?'Altitude + speed':'高度和速度'],['none',en?'Unchanged':'未调整'],['all',en?'All aircraft':'全部飞机']].map(([value,text])=>{
         const o=document.createElement('option');o.value=value;o.textContent=text;return o;
       })); scopeSelect.value=aircraftScope;
       sharedSelect.replaceChildren(...listed.map(a=>{
         const o=document.createElement('option');o.value=a.id;
-        const changes=(view==='compare'?comparisonKeys():[mode]).map(k=>a.plans[k]?.change);
-        const altitude=changes.some(c=>['altitude','both'].includes(c));
-        o.textContent='#'+a.id+(view==='setup'?'':altitude?(en?' · altitude':' · 高度'):changes.includes('speed')?(en?' · speed':' · 速度'):(en?' · unchanged':' · 未改'));return o;
+        o.textContent='#'+a.id;return o;
       }));
       if (!listed.length) {const o=document.createElement('option');o.textContent=en?'No matching aircraft':'无符合条件飞机';sharedSelect.append(o);}
     }

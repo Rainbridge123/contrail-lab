@@ -243,3 +243,10 @@ body[data-view="compare"] .scene-context { display:none; }
 .camera button[aria-pressed="true"] { color:#003D7C; border-color:#9fb9d4; background:#e8f0f8; }
 
 #aircraft-scope {background:#164f89;color:#fff;border:1px solid #7295b9;padding:5px 8px;border-radius:3px;font-size:12px;max-width:145px;}
+
+.aircraft-picker {display:grid;gap:6px;padding:3px 0;}
+.aircraft-picker label {display:grid;grid-template-columns:64px minmax(120px,1fr);align-items:center;gap:8px;font-size:12px;}
+.aircraft-picker label[hidden] {display:none;}
+.aircraft-picker label > span {color:#d8e6f4;}
+.aircraft-picker #aircraft-scope,.aircraft-picker #shared-aircraft {width:100%;max-width:none;min-width:135px;font-size:12px;padding:4px 8px;}
+.demo-scrubber #demo-rate {width:70px;flex:0 0 70px;}
