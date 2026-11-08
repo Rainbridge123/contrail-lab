@@ -8,6 +8,7 @@ export function createSetupControls(aircraft,onChange){
  const layerTitle=document.createElement('header');layerBox.append(layerTitle);
  const layerPanel=document.createElement('div');layerPanel.id='setup-layer-controls';layerBox.append(layerPanel);
  const en=()=>document.documentElement.lang.startsWith('en');const t=(a,b)=>en()?b:a;
+ let matrixChoice=0;
  let active='space',demoRaf=0,demoLast=null, demoOpen=false;
  function applySectionLayers(section){
   Object.assign(state,{space:true,aircraft:false,time:false,hotspots:false,candidates:false,routePlanes:false,routes:[0,45,90,135],levels:[33000,35000,37000],demo:false});
@@ -48,6 +49,31 @@ export function createSetupControls(aircraft,onChange){
   const notes={space:t('四条航路共用一个交叉点','Four routes share one intersection'),aircraft:t('参考高度 ≠ P₀ 或候选的全部高度','Reference levels ≠ all P₀ or candidate altitudes'),time:t('原始参考剖面 · 参考 Mach · ISA / 无风','Original reference profiles · Reference Mach · ISA / No wind'),hotspots:t('先计算 P₀，再抽取热点中心高度','P₀ is computed before hotspot altitude sampling'),candidates:t('同高度的 Mach 候选空间重合，差异在飞行时间','Mach variants at one altitude share a path but differ in timing')};
   const layerNames={space:t('航路与坐标','Routes & axes'),aircraft:t('飞机与高度面','Aircraft & planes'),time:t('入场时间回放','Entry-time replay'),hotspots:t('热点','Hotspots')};
   panel.innerHTML=`<header><span>${active==='candidates'?t('决策空间','ACTION SPACE'):t('标准环境设置','ENVIRONMENT SETTINGS')}</span><small>${questions[active]}</small></header><div class="setup-table-wrap environment-content"><section class="environment-rules"><h3>${active==='candidates'?t('参考方案与候选生成','Reference plan & candidate generation'):t('固定设定与生成规则','Settings & generation rules')}</h3><table><tbody>${tables[active].join('')}</tbody></table><p class="environment-note">${notes[active]}</p></section></div><div class="environment-control-region">${active==='aircraft'?`<details class="environment-tools" id="environment-demo" ${demoOpen||state.demo?'open':''}><summary>${t('单机演示','Demo aircraft')}</summary><table><tbody>${demoRows.join('')}</tbody></table><p class="environment-note">${t('参考剖面 · ISA / 无风 · 60× 播放','Reference profile · ISA / No wind · 60× playback')}</p></details>`:''}</div><footer>${t('01 空域 → 02 机队 → 03 入场 → 04 热点 → 05 动作','01 Airspace → 02 Fleet → 03 Entry → 04 Hotspots → 05 Actions')}</footer>`;
+  sidebar.dataset.section=active;
+  if(active==='candidates') {
+    const rules=panel.querySelector('.environment-rules');
+    // Presentation P0..P8 labels encode offsets, not the generator's raw indices.
+    const columns=[{dm:-.06,base:6},{dm:-.03,base:3},{dm:0,base:0}];
+    const matrix=`<section class="action-matrix" aria-label="${t('相对 P₀ 的候选组合','Candidate combinations relative to P₀')}">
+      <div class="matrix-heading">${t('9 种候选组合','9 candidate combinations')}<span>Δh × ΔMach</span></div>
+      <div class="matrix-grid"><span></span>${columns.map(c=>`<span class="matrix-axis">${c.dm===0?'0':c.dm.toFixed(2).replace('-','−')}</span>`).join('')}
+      ${[0,-2000,-4000].map((dh,rowIndex)=>`<span class="matrix-axis">${dh===0?'0 ft':dh.toLocaleString().replace('-','−')+' ft'}</span>${columns.map(c=>{const id=c.base+rowIndex;return `<button type="button" class="matrix-cell ${id===0?'matrix-origin':''}" data-candidate="${id}" aria-pressed="${id===matrixChoice}" aria-label="P${id}: Δh ${dh} ft, ΔMach ${c.dm}">P${id}${id===0?`<small>${t('起始方案','Start plan')}</small>`:''}</button>`;}).join('')}`).join('')}</div>
+      <div class="matrix-axis-caption">${t('横轴 ΔMach · 纵轴 Δh（相对 P₀）','Columns: ΔMach · Rows: Δh from P₀')}</div>
+      <div class="matrix-selection" aria-live="polite"></div>
+      <div class="matrix-note">${t('组合示意 · 需通过性能可行性检查','Combination diagram · Performance feasibility required')}</div>
+    </section>`;
+    rules.querySelector('h3').remove();
+    rules.insertAdjacentHTML('afterbegin',matrix);
+    const table=rules.querySelector('table');
+    const details=document.createElement('details');details.className='matrix-rules';
+    const summary=document.createElement('summary');summary.textContent=t('P₀ 搜索与生成规则','P₀ search & generation rules');details.append(summary,table);rules.append(details);
+    function updateMatrix(){
+      const row=matrixChoice%3,dm=-Math.floor(matrixChoice/3)*.03,dh=-row*2000;
+      rules.querySelectorAll('[data-candidate]').forEach(button=>button.setAttribute('aria-pressed',Number(button.dataset.candidate)===matrixChoice));
+      rules.querySelector('.matrix-selection').textContent=`P${matrixChoice} · Δh ${dh.toLocaleString()} ft · ΔMach ${dm.toFixed(2)}`;
+    }
+    rules.querySelectorAll('[data-candidate]').forEach(button=>button.onclick=()=>{matrixChoice=Number(button.dataset.candidate);updateMatrix();});updateMatrix();
+  }
   const children={space:`<table><tbody>${[layerRows.space[0],...(state.routePlanes?[layerRows.space[1]]:[])].join('')}</tbody></table>`,aircraft:checks('levels',[33000,35000,37000],v=>v.toLocaleString()+' ft'),candidates:`<table><tbody>${layerRows.candidates.join('')}</tbody></table>`};
   layerPanel.innerHTML=Object.entries(layerNames).map(([k,v])=>`<section class="layer-group"><label class="layer-parent"><input type="checkbox" data-layer="${k}" ${state[k]?'checked':''}>${v}</label>${children[k]&&state[k]?`<div class="layer-children">${children[k]}</div>`:''}</section>`).join('');
   layerPanel.scrollTop=layerScroll;

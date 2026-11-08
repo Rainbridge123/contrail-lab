@@ -250,3 +250,21 @@ body[data-view="compare"] .scene-context { display:none; }
 .aircraft-picker label > span {color:#d8e6f4;}
 .aircraft-picker #aircraft-scope,.aircraft-picker #shared-aircraft {width:100%;max-width:none;min-width:135px;font-size:12px;padding:4px 8px;}
 .demo-scrubber #demo-rate {width:70px;flex:0 0 70px;}
+
+body[data-view="setup"] #environment-sidebar[data-section="candidates"] {grid-template-rows:minmax(0,4fr) minmax(85px,1fr);}
+@media(max-width:800px){body[data-view="setup"] #environment-sidebar[data-section="candidates"] {grid-template-rows:450px 240px;}}
+.action-matrix {margin-bottom:12px;}
+.matrix-heading {display:flex;justify-content:space-between;align-items:center;font-weight:600;color:#003D7C;margin-bottom:10px;font-size:13px;}
+.matrix-heading span {font-size:10px;color:#61778c;font-weight:400;}
+.matrix-grid {display:grid;grid-template-columns:62px repeat(3,minmax(0,1fr));gap:6px;align-items:stretch;}
+.matrix-axis {font-size:10px;color:#61778c;display:flex;align-items:center;justify-content:center;white-space:nowrap;}
+.matrix-cell {position:relative;border:1px solid #abc0d8;border-radius:6px;background:#e8eff7;color:#003D7C;height:52px;padding:4px;font-size:15px;font-weight:650;cursor:pointer;}
+.matrix-cell small {display:block;font-size:8px;font-weight:400;margin-top:2px;}
+.matrix-cell.matrix-origin {background:#003D7C;color:white;border-color:#003D7C;}
+.matrix-cell[aria-pressed="true"] {outline:2px solid #EF7C00;outline-offset:1px;}
+.matrix-cell:hover {border-color:#EF7C00;}
+.matrix-cell:focus-visible {outline:2px solid #EF7C00;outline-offset:2px;}
+.matrix-axis-caption,.matrix-note {font-size:10px;line-height:1.5;color:#61778c;margin-top:9px;}
+.matrix-selection {padding:9px 7px;margin-top:10px;background:#eef3f8;border-left:3px solid #EF7C00;color:#003D7C;font-size:11px;font-variant-numeric:tabular-nums;}
+.matrix-rules {font-size:12px;color:#355674;border-top:1px solid #d9e4ee;padding-top:10px;}
+.matrix-rules summary {cursor:pointer;}
