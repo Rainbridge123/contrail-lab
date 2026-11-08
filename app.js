@@ -3,7 +3,7 @@ import { createPlaybackControls } from './playback-controls.js?v=initiallevels1'
 import { createSetupControls } from './setup-controls.js?v=popover1';
 import { createViewer } from "./viewer.js?v=picker3";
 import { createAircraftPreview } from "./aircraft-model.js?v=pptaircraft1";
-import { applyLanguage, setLanguage, t as translate } from "./i18n.js?v=nestedlayers1";
+import { applyLanguage, setLanguage, t as translate } from "./i18n.js?v=defaults1";
 
 import { interpolate, samplePlan, groupComparisonPlans, comparisonFrame } from "./comparison-data.js?v=compare6";
 
@@ -359,7 +359,7 @@ function start(data) {
       t=playbackStart();
     } else viewer.setComparison(null);
     syncViewControls(); syncPlanControls(); rebuildComparison();
-    if (view === "compare") viewer.setView("profile");
+    viewer.setView("orbit");
     syncScaleControls();
     const cameraName = viewer.getView();
     cameraButtons.forEach(button => button.setAttribute("aria-pressed", button.dataset.camera === cameraName));

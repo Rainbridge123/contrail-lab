@@ -251,8 +251,6 @@ body[data-view="compare"] .scene-context { display:none; }
 .aircraft-picker #aircraft-scope,.aircraft-picker #shared-aircraft {width:100%;max-width:none;min-width:135px;font-size:12px;padding:4px 8px;}
 .demo-scrubber #demo-rate {width:70px;flex:0 0 70px;}
 
-body[data-view="setup"] #environment-sidebar[data-section="candidates"] {grid-template-rows:minmax(0,4fr) minmax(85px,1fr);}
-@media(max-width:800px){body[data-view="setup"] #environment-sidebar[data-section="candidates"] {grid-template-rows:450px 240px;}}
 .action-matrix {margin-bottom:12px;}
 .matrix-heading {display:flex;justify-content:space-between;align-items:center;font-weight:600;color:#003D7C;margin-bottom:10px;font-size:13px;}
 .matrix-heading span {font-size:10px;color:#61778c;font-weight:400;}
@@ -269,7 +267,6 @@ body[data-view="setup"] #environment-sidebar[data-section="candidates"] {grid-te
 .matrix-rules {font-size:12px;color:#355674;border-top:1px solid #d9e4ee;padding-top:10px;}
 .matrix-rules summary {cursor:pointer;}
 
-body[data-view="setup"] #environment-sidebar[data-section="candidates"] {grid-template-rows:minmax(0,2.8fr) minmax(100px,1fr);}
 #environment-sidebar[data-section="candidates"] #setup-parameters footer {display:none;}
 .matrix-info {border:0;background:transparent;color:#61778c;font-size:18px;padding:0 3px;cursor:pointer;}
 .action-detail-popover {position:fixed;inset:auto;margin:0;box-sizing:border-box;width:280px;max-width:calc(100vw - 20px);max-height:calc(100vh - 20px);overflow:auto;padding:0;border:1px solid #b9cde0;border-radius:8px;background:#fafdff;color:#24435d;box-shadow:0 10px 32px #003d7c22;font:12px/1.6 Inter,system-ui,sans-serif;}
@@ -281,11 +278,16 @@ body[data-view="setup"] #environment-sidebar[data-section="candidates"] {grid-te
 .action-detail-content dt {color:#61778c;}.action-detail-content dd {margin:0;font-weight:600;}
 .action-detail-content p {color:#61778c;font-size:11px;margin:12px 0 0;}
 .action-detail-content table {width:100%;border-collapse:collapse;font-size:11px;}.action-detail-content th,.action-detail-content td {padding:8px 4px;border-bottom:1px solid #dce5ed;text-align:left;vertical-align:top;}.action-detail-content th {font-weight:500;color:#61778c;width:38%;}
-@media(max-width:800px){body[data-view="setup"] #environment-sidebar[data-section="candidates"] {grid-template-rows:350px 240px;}}
-body[data-view="setup"] #environment-sidebar[data-section="candidates"] {top:48px;bottom:12px;grid-template-rows:minmax(0,1fr) 100px;}
 #environment-sidebar[data-section="candidates"] #setup-parameters header {padding:10px 14px;}
 #environment-sidebar[data-section="candidates"] #setup-parameters header small {display:none;}
 #environment-sidebar[data-section="candidates"] .environment-content {padding-top:10px;}
 #environment-sidebar[data-section="candidates"] .matrix-cell {height:36px;font-size:13px;}
 #environment-sidebar[data-section="candidates"] .matrix-cell small {font-size:8px;margin-top:0;}
-@media(max-width:800px){body[data-view="setup"] #environment-sidebar[data-section="candidates"] {inset:auto;grid-template-rows:300px 240px;}}
+/* Let the action matrix take only its content height; layers get the rest. */
+body[data-view="setup"] #environment-sidebar[data-section="candidates"] {display:flex;flex-direction:column;top:48px;bottom:12px;gap:14px;}
+body[data-view="setup"] #environment-sidebar[data-section="candidates"] #setup-parameters {flex:0 0 auto;}
+#environment-sidebar[data-section="candidates"] .environment-content {flex:none;overflow:visible;min-height:0;}
+#environment-sidebar[data-section="candidates"] #environment-layer-box {flex:1 1 auto;min-height:180px;}
+#environment-layer-box>header {flex-shrink:0;}
+@media(min-width:801px){body[data-view="setup"] .stage:has(#environment-sidebar[data-section="candidates"]) {min-height:600px;}}
+@media(max-width:800px){body[data-view="setup"] #environment-sidebar[data-section="candidates"] {position:relative;inset:auto;}#environment-sidebar[data-section="candidates"] #environment-layer-box {flex:none;height:280px;}}

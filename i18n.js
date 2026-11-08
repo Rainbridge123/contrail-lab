@@ -60,13 +60,8 @@ const dynamicMessages = {
 };
 
 const locales = { zh: "zh-Hans", en: "en" };
-const storageKey = "contrail-lab-language";
-let language = "zh";
-try {
-  if (localStorage.getItem(storageKey) === "en") language = "en";
-} catch {
-  // The switch still works if storage is unavailable.
-}
+// Presentation sessions always open in English; switching applies to this page.
+let language = "en";
 
 export function t(key, values) {
   const text = dynamicMessages[language][key] ?? staticMessages[language][key];
@@ -76,11 +71,7 @@ export function t(key, values) {
 export function setLanguage(next) {
   if (!Object.hasOwn(locales, next)) return;
   language = next;
-  try {
-    localStorage.setItem(storageKey, language);
-  } catch {
-    // The current tab can still use the chosen language.
-  }
+
 }
 
 export function applyLanguage() {
