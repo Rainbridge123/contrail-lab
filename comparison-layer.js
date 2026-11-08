@@ -5,13 +5,20 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
   const { position, line, label } = helpers;
   function compactLabel(text, color) {
     const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
-    ctx.font = '500 24px sans-serif';
-    canvas.width = Math.ceil(ctx.measureText(text).width) + 20; canvas.height = 40;
-    ctx.font = '500 24px sans-serif'; ctx.fillStyle = color;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, canvas.width / 2, 20);
+    const scale = 3, font = '600 13px system-ui, sans-serif';
+    ctx.font = font;
+    const width = Math.ceil(ctx.measureText(text).width) + 26, height = 26;
+    canvas.width = width * scale; canvas.height = height * scale;
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#c8d4df'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(.5,.5,width-1,height-1,5); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color; ctx.fillRect(7,8,3,10);
+    ctx.font = font; ctx.fillStyle = '#15334c'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(text,16,height/2);
     const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+    map.generateMipmaps = false; map.minFilter = THREE.LinearFilter;
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({map, transparent:true, depthTest:false, depthWrite:false, toneMapped:false}));
-    sprite.scale.set(canvas.width / canvas.height * 9, 9, 1); sprite.renderOrder = 5;
+    sprite.userData.pixelSize = [width,height]; sprite.renderOrder = 6;
     return sprite;
   }
   const annotationSprites = [];
@@ -65,17 +72,14 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
   for (const group of groups) {
     const name = compactLabel(group.label, group.color);
     name.visible = false;
+    const connector = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),
+      new THREE.LineBasicMaterial({color:group.color, transparent:true, opacity:.65, depthTest:false, depthWrite:false}));
+    connector.renderOrder = 5; connector.visible = false; connector.userData.annotation = true;
+    object.add(connector); name.userData.connector = connector;
     object.add(name); labels.set(group.id, name); annotationSprites.push(name);
     const marker = new THREE.Mesh(new THREE.SphereGeometry(1.65, 12, 8), new THREE.MeshBasicMaterial({color: group.color, toneMapped: false, depthTest: false}));
     marker.renderOrder = 4; marker.visible = false; marker.userData.annotation = true;
     object.add(marker); markers.set(group.id, marker);
-  }
-  for (const group of spatialGroups) {
-    const text = group.label;
-    const endLabel = compactLabel(text, group.color);
-    const [, s, h] = group.plan.points.at(-1);
-    endLabel.position.copy(at(s - 35, h)); endLabel.position.y += 7;
-    endLabel.userData.fullTrajectory = true; object.add(endLabel); annotationSprites.push(endLabel);
   }
   for (let altitude = bottomFt; altitude <= topFt; altitude += 2000) {
     guides.add(line([at(0, altitude), at(flight.length, altitude)], 0xdde6ee, .8));
@@ -144,27 +148,33 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
         // Restore the genuine anchor before each screen-space layout pass.
         if (sprite.userData.labelShift) sprite.position.sub(sprite.userData.labelShift);
         sprite.userData.labelShift = null;
+        sprite.userData.connector.visible = false;
         if (!sprite.visible) continue;
         const anchor = sprite.position.clone();
         const projected = anchor.clone().project(camera);
         if (projected.z < -1 || projected.z > 1) continue;
-        const size = sprite.scale.clone();
-        const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
-        const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
-        const pRight = anchor.clone().addScaledVector(right, size.x / 2).project(camera);
-        const pUp = anchor.clone().addScaledVector(up, size.y / 2).project(camera);
-        const halfW = Math.abs(pRight.x - projected.x) * width / 2 + 4;
-        const halfH = Math.max(7, Math.abs(pUp.y - projected.y) * height / 2) + 3;
-        const x = (projected.x + 1) * width / 2;
-        let y = (1 - projected.y) * height / 2;
-        for (let attempt=0; attempt<30; attempt++) {
-          const collision = occupied.find(r => Math.abs(r.x-x)<r.w+halfW && Math.abs(r.y-y)<r.h+halfH);
-          if (!collision) break;
-          y = collision.y - collision.h - halfH - 2;
+        const [pixelW,pixelH] = sprite.userData.pixelSize;
+        const halfW = pixelW / 2 + 4, halfH = pixelH / 2 + 4;
+        const anchorX = (projected.x + 1) * width / 2, anchorY = (1-projected.y)*height/2;
+        let x = Math.max(halfW+4,Math.min(width-halfW-4,anchorX+halfW+16));
+        let y = Math.max(halfH+4,Math.min(height-halfH-4,anchorY-24));
+        for (let attempt=0; attempt<24; attempt++) {
+          if (!occupied.some(r => Math.abs(r.x-x)<r.w+halfW && Math.abs(r.y-y)<r.h+halfH)) break;
+          const offset = (Math.floor(attempt/2)+1)*(halfH*2+4)*(attempt%2 ? 1:-1);
+          y = Math.max(halfH+4,Math.min(height-halfH-4,anchorY-24+offset));
         }
-        const adjusted = new THREE.Vector3(projected.x, 1 - y*2/height, projected.z).unproject(camera);
+        const adjusted = new THREE.Vector3(x*2/width-1, 1-y*2/height, projected.z).unproject(camera);
+        const edgeX = new THREE.Vector3((x+pixelW/2)*2/width-1,1-y*2/height,projected.z).unproject(camera);
+        const edgeY = new THREE.Vector3(x*2/width-1,1-(y+pixelH/2)*2/height,projected.z).unproject(camera);
+        sprite.scale.set(adjusted.distanceTo(edgeX)*2,adjusted.distanceTo(edgeY)*2,1);
         sprite.userData.labelShift = adjusted.clone().sub(anchor);
         sprite.position.copy(adjusted);
+        const targetX = Math.max(x-pixelW/2,Math.min(x+pixelW/2,anchorX));
+        const targetY = Math.max(y-pixelH/2,Math.min(y+pixelH/2,anchorY));
+        const target = new THREE.Vector3(targetX*2/width-1,1-targetY*2/height,projected.z).unproject(camera);
+        const connector = sprite.userData.connector, attr = connector.geometry.attributes.position;
+        attr.setXYZ(0,anchor.x,anchor.y,anchor.z); attr.setXYZ(1,target.x,target.y,target.z);
+        attr.needsUpdate = true; connector.geometry.computeBoundingSphere(); connector.visible = true;
         occupied.push({x,y,w:halfW,h:halfH});
       }
     },
@@ -181,8 +191,7 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
           sprite.position.copy(position(frame.x, frame.y, frame.z));
           sprite.position.y *= verticalScale;
           marker.position.copy(sprite.position);
-          sprite.position.addScaledVector(direction, 14);
-          sprite.position.y += trueScale ? 7 : 11;
+
 
         }
       }
