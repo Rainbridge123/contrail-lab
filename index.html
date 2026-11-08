@@ -7,23 +7,20 @@
   <meta name="description" content="在三维空域中回放 CS5446 v5 合成场景，查看 96 架飞机的航路与热点避让。" data-i18n-content="description">
   <title>Contrail Lab · v5 空域回放</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=wide1">
+  <link rel="stylesheet" href="./lecture.css?v=pptpalette1">
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=clearpaths1"></script>
+
 </head>
 <body>
   <header class="masthead">
     <div class="masthead-inner">
       <div class="brand">
-        <svg class="brand-icon" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-          <rect x="1" y="1" width="34" height="34" rx="9" fill="currentColor" fill-opacity=".09" stroke="currentColor" stroke-opacity=".26"/>
-          <path d="M8 23.5 27 11l-8.5 16-2-6.5-8.5 3Z" stroke="currentColor" stroke-width="1.65" stroke-linejoin="round"/>
-          <path d="M16.5 20.5 27 11" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/>
-        </svg>
-        <div><span class="wordmark">Contrail Lab</span><span class="brand-detail" data-i18n="brandDetail">CS5446 · 场景浏览器</span></div>
+        <div><h1 class="wordmark">Contrail Lab</h1><span class="brand-detail" data-i18n="brandDetail">CS5446 · 实验结果</span></div>
       </div>
       <div class="masthead-actions">
-        <div class="source-tag"><span class="source-dot"></span><span data-i18n="sourceTag">v5 合成场景</span><span class="seed mono" data-i18n="seedTag">种子 10000</span></div>
+        <div class="source-tag"><span class="source-dot"></span><span data-i18n="sourceTag">标准实验环境</span></div>
         <div class="language-switch" role="group" aria-label="界面语言" data-i18n-aria-label="languageGroup">
           <button type="button" data-language="zh" lang="zh-Hans" aria-label="中文" aria-pressed="true">中文</button>
           <button type="button" data-language="en" lang="en" aria-label="English" aria-pressed="false">EN</button>
@@ -33,81 +30,107 @@
   </header>
   <main class="shell">
     <div class="intro">
-      <div>
-        <p class="eyebrow" data-i18n="benchmark">基准 V5 / 01</p>
-        <h1 data-i18n="heading">交叉空域回放</h1>
-        <p class="subtitle" data-i18n="subtitle">在同一时刻切换方案，观察热点避让与机队协调如何改变轨迹。</p>
+      <div class="view-switch" role="group" aria-label="展示视图" data-i18n-aria-label="viewGroup">
+        <button type="button" data-view="fleet" aria-pressed="true" data-i18n="fleetView">机队回放</button>
+        <button type="button" data-view="setup" id="setup-view">场景演示</button>
+        <button type="button" data-view="compare" aria-pressed="false" data-i18n="compareView">同机对照</button>
       </div>
-      <div class="plan-panel">
-        <div class="plan-heading">
-          <span class="section-label" data-i18n="complexityLabel">整场交通复杂度 Ψ（秒）</span>
-          <span id="psi-delta" class="psi-delta mono">P₀ 基准</span>
-        </div>
-        <div class="scheme" role="group" aria-label="飞行方案及整场交通复杂度" data-i18n-aria-label="plansGroup">
-          <button id="mode-b0" data-mode="B0" type="button" aria-pressed="true"><span data-i18n="planB0">P₀ 初始</span><span class="scheme-psi mono">—</span></button>
-          <button id="mode-b1" data-mode="B1" type="button" aria-pressed="false"><span data-i18n="planB1">B1 避让</span><span class="scheme-psi mono">—</span></button>
-          <button id="mode-b2" data-mode="B2" type="button" aria-pressed="false"><span data-i18n="planB2">B2 协调</span><span class="scheme-psi mono">—</span></button>
-        </div>
-      </div>
+      <div class="scene-context"><strong id="plan-summary">B2 搜索 · C</strong><strong id="compare-summary" hidden></strong><p data-i18n="sceneSummary">96 架 A320 · 4 条航线 · 4 个热点</p></div>
     </div>
-
-    <div class="workspace">
+    <section class="experiment-panel" aria-label="实验方案" data-i18n-aria-label="experimentPlans">
+      <div class="experiment-row">
+        <div class="method-switch" role="group" aria-label="回放方法" data-i18n-aria-label="methodsGroup">
+            <button id="family-baseline" data-family="baseline" type="button" aria-pressed="false" data-i18n="familyBaseline">参考方案</button>
+            <button id="family-b2" data-family="B2" type="button" aria-pressed="true" data-i18n="familyB2">B2 搜索</button>
+            <button id="family-mappo" data-family="MAPPO" type="button" aria-pressed="false" disabled data-i18n="familyMappo">正式 MAPPO</button>
+          </div>
+        <div class="plan-tabs">          <div data-family-panel="baseline" hidden>
+            <div class="scheme reference-scheme" role="group" aria-label="参考方案" data-i18n-aria-label="familyBaseline">
+              <button id="mode-b0" data-mode="B0" type="button" aria-pressed="false"><span data-i18n="planB0">P₀ 初始</span></button>
+              <button id="mode-b1" data-mode="B1" type="button" aria-pressed="false"><span data-i18n="planB1">B1 避让</span></button>
+            </div>
+          </div>
+          <div data-family-panel="B2">
+            <div class="scheme arm-scheme" role="group" aria-label="B2 搜索约束组" data-i18n-aria-label="b2ArmsGroup">
+              <button id="mode-b2-c" data-mode="B2-C" type="button" aria-pressed="true" data-i18n-title="armCTitle"><span>C <small data-i18n="armC">仅热点</small></span></button>
+              <button id="mode-b2-cf" data-mode="B2-CF" type="button" aria-pressed="false" data-i18n-title="armCFTitle"><span>CF <small data-i18n="armCF">+ 燃油上限</small></span></button>
+              <button id="mode-b2-ct" data-mode="B2-CT" type="button" aria-pressed="false" data-i18n-title="armCTTitle"><span>CT <small data-i18n="armCT">+ 时间上限</small></span></button>
+              <button id="mode-b2-cft" data-mode="B2-CFT" type="button" aria-pressed="false" data-i18n-title="armCFTTitle"><span>CFT <small data-i18n="armCFT">同时限制</small></span></button>
+            </div>
+          </div>
+          <div data-family-panel="MAPPO" hidden>
+            <div class="scheme arm-scheme" role="group" aria-label="正式 MAPPO 约束组" data-i18n-aria-label="mappoArmsGroup">
+              <button data-mode="MAPPO-C" type="button" aria-pressed="false" disabled><span>C <small data-i18n="armC">仅热点</small></span></button>
+              <button data-mode="MAPPO-CF" type="button" aria-pressed="false" disabled><span>CF <small data-i18n="armCF">+ 燃油上限</small></span></button>
+              <button data-mode="MAPPO-CT" type="button" aria-pressed="false" disabled><span>CT <small data-i18n="armCT">+ 时间上限</small></span></button>
+              <button data-mode="MAPPO-CFT" type="button" aria-pressed="false" disabled><span>CFT <small data-i18n="armCFT">同时限制</small></span></button>
+            </div>
+          </div>
+</div>
+      </div>
+      <p id="plan-rule" class="plan-rule"></p>
+      <p id="selection-status" class="selection-status" role="status" hidden></p>
+    </section>
+    <section class="results" aria-label="整场实验结果" data-i18n-aria-label="resultsLabel">
+      <div class="result result-primary"><h2 data-i18n="complexityLabel">交通复杂度 Ψ（秒）</h2><div><strong id="metric-psi" class="mono">—</strong><span id="psi-delta" class="psi-delta mono">—</span></div></div>
+      <div class="result"><h2 data-i18n="fleetFuelChange">燃油增幅 / P₀</h2><strong id="metric-fuel" class="mono">—</strong></div>
+      <div class="result"><h2 data-i18n="fleetTimeChange">时间增幅 / P₀</h2><strong id="metric-time" class="mono">—</strong></div>
+      <div class="result"><h2 data-i18n="hotspotShare">热点暴露比例</h2><strong id="metric-hotspot" class="mono">—</strong></div>
+    </section>
+    <section id="comparison-controls" class="comparison-controls" hidden>
+      <div><label for="compare-aircraft" data-i18n="selectAircraft">选择飞机</label><select id="compare-aircraft"></select><span id="compare-meta"></span></div>
+      <div><label for="compare-method" data-i18n="compareMethod">对照方法</label><select id="compare-method"><option value="B2" data-i18n="familyB2">B2 搜索</option><option value="MAPPO" data-i18n="familyMappo" disabled>正式 MAPPO</option></select><span data-i18n="compareReferences">含 P₀、B1 参考</span></div>
+    </section>
+    <div class="workspace" data-details="closed" data-view="fleet">
       <section class="stage" aria-label="三维空域" data-i18n-aria-label="stageLabel">
         <div id="scene" class="scene"></div>
         <div class="stage-top">
-          <div class="stage-badge"><span class="frame-corner" aria-hidden="true"></span><span data-i18n="stageLabel">三维空域</span></div>
-          <div class="camera" role="group" aria-label="相机视角" data-i18n-aria-label="cameraGroup">
+          <div class="stage-caption"><span data-i18n="airborneNow">当前在空中</span><strong id="airborne" class="mono">—</strong></div>
+          <div id="comparison-caption" class="comparison-caption" hidden><strong id="compare-flight-label"></strong><span data-i18n="comparisonSceneHint">同一飞机 · 同一仿真时刻</span></div>
+          <div class="stage-controls">
+            <div class="camera" role="group" aria-label="相机视角" data-i18n-aria-label="cameraGroup">
             <button type="button" data-camera="orbit" aria-pressed="true" data-i18n="cameraOrbit" title="三维环绕视角" data-i18n-title="cameraOrbitTitle">三维</button>
             <button type="button" data-camera="top" aria-pressed="false" data-i18n="cameraTop" title="从上方查看空域" data-i18n-title="cameraTopTitle">俯视</button>
             <button type="button" data-camera="profile" aria-pressed="false" data-i18n="cameraProfile" title="从侧面查看空域" data-i18n-title="cameraProfileTitle">侧视</button>
           </div>
-        </div>
-        <p id="load-message" class="load-message" role="status"><span data-i18n="loadingScene">正在载入场景…</span></p>
-        <div class="stage-bottom">
-          <div class="stage-keys">
-            <ul class="legend" aria-label="图例" data-i18n-aria-label="legendLabel">
-              <li><span class="key box-key"></span><span data-i18n="legendBounds">显示边界</span></li>
-              <li><span class="key route-key"></span><span data-i18n="legendRoute">航线</span></li>
-              <li><span class="key plane-key"></span><span data-i18n="legendUnchanged">未改</span></li>
-              <li><span class="key hotspot-key"></span><span data-i18n="legendHotspot">热点</span></li>
-            </ul>
-            <div class="change-filters" role="group" aria-label="按相对 P₀ 的调整筛选飞机" data-i18n-aria-label="filtersGroup">
+            <button id="true-scale" class="toolbar-button" type="button" aria-pressed="false" aria-describedby="scale-note" data-i18n="trueScale" data-i18n-title="trueScaleTitle">真实比例</button>
+            <button id="toggle-inspector" class="toolbar-button" type="button" aria-expanded="false" aria-controls="aircraft-inspector" data-i18n="aircraftDetails">飞机详情</button>
+            <details class="display-settings">
+              <summary data-i18n="displaySettings">显示设置</summary>
+              <div class="settings-body">
+                <div class="display-tools"><label for="aircraft-size" data-i18n="aircraftSize">飞机大小</label><input id="aircraft-size" type="range" min="50" max="150" step="5" value="100"><output id="aircraft-size-value" for="aircraft-size" class="mono">100%</output></div>
+                <div class="change-filters" role="group" aria-label="按相对 P₀ 的调整筛选飞机" data-i18n-aria-label="filtersGroup">
               <span class="change-caption" data-i18n="relativeToP0">相对 P₀</span>
               <button type="button" data-change-filter="all" aria-pressed="true"><span data-i18n="filterAll">全部</span> <span class="change-count mono">—</span></button>
               <button type="button" data-change-filter="altitude" aria-pressed="false"><span class="change-dot"></span><span data-i18n="filterAltitude">仅高度</span> <span class="change-count mono">—</span></button>
               <button type="button" data-change-filter="speed" aria-pressed="false"><span class="change-dot"></span><span data-i18n="filterSpeed">仅 Mach</span> <span class="change-count mono">—</span></button>
               <button type="button" data-change-filter="both" aria-pressed="false" title="高度和 Mach 都有变化" data-i18n-title="filterBothTitle"><span class="change-dot"></span><span data-i18n="filterBoth">两项</span> <span class="change-count mono">—</span></button>
             </div>
+                <p data-i18n="orbitHint">拖动旋转 · 右键平移 · 滚动缩放</p>
+              </div>
+            </details>
           </div>
-          <span class="orbit-hint" data-i18n="orbitHint">拖动旋转 · 右键平移 · 滚动缩放</span>
+        </div>
+        <p id="load-message" class="load-message" role="status"><span data-i18n="loadingScene">正在载入场景…</span></p>
+        <section class="scene-stats"><h2 class="section-label" data-i18n="fleetStats">机队统计</h2><dl>
+          <div><dt data-i18n="inHotspotsNow">当前在热点内</dt><dd id="in-hotspots" class="mono">—</dd></div>
+          <div><dt data-i18n="totalExposed">全程触碰热点</dt><dd id="total-exposed" class="mono">—</dd></div>
+          <div><dt data-i18n="totalChanged">全程调整飞机</dt><dd id="total-changed" class="mono">—</dd></div>
+        </dl></section>
+        <div class="stage-bottom">
+          <ul class="legend" aria-label="图例" data-i18n-aria-label="legendLabel">
+            <li><span class="key plane-key"></span><span data-i18n="legendUnchanged">未改</span></li>
+            <li><span class="key altitude-key"></span><span data-i18n="filterAltitude">仅高度</span></li>
+            <li><span class="key speed-key"></span><span data-i18n="filterSpeed">仅 Mach</span></li>
+            <li><span class="key both-key"></span><span data-i18n="filterBoth">两项</span></li>
+            <li><span class="key hotspot-key"></span><span data-i18n="legendHotspot">热点</span></li>
+            <li id="filter-summary" class="filter-summary" hidden></li>
+          </ul>
+          <ul id="comparison-legend" class="legend comparison-legend" aria-label="方案轨迹图例" data-i18n-aria-label="comparisonLegend" hidden></ul>
+          <p id="scale-note" class="scale-note" data-i18n="displayScaleNote">飞机示意大小 · 高度轴 ×54.7</p>
         </div>
       </section>
-
-      <section class="timeline" aria-label="仿真时间轴" data-i18n-aria-label="timelineLabel">
-        <div class="timeline-head">
-          <div class="playback">
-            <button type="button" id="play" class="play-button" aria-label="播放" data-i18n-aria-label="playAction" disabled>
-              <svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
-              <svg class="pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14m8-14v14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
-            </button>
-            <div class="clock-wrap">
-              <span class="section-label" data-i18n="simulationTime">仿真时间</span>
-              <div class="mono clock"><output id="time-readout" for="time-range">00:43:56</output> <span id="time-max">/ 02:03:31</span></div>
-            </div>
-          </div>
-          <label class="speed-control" for="speed"><span data-i18n="playbackRate">播放倍率</span>
-            <select id="speed"><option value="30">30×</option><option value="60" selected>60×</option><option value="120">120×</option><option value="300">300×</option></select>
-          </label>
-        </div>
-        <div class="scrub">
-          <label class="sr-only" for="time-range" data-i18n="simulationTime">仿真时间</label>
-          <input type="range" id="time-range" min="0" max="7411" step="1" value="2636" disabled>
-          <div id="ticks" class="ticks mono" aria-hidden="true"></div>
-        </div>
-        <div class="timeline-foot"><span><span class="entry-mark"></span><span data-i18n="entryWindow">入场窗口 00:00–01:00</span></span><span data-i18n="sceneTimeHint">时间从场景开始计</span></div>
-      </section>
-
-      <aside class="inspector" aria-label="飞机与场景信息" data-i18n-aria-label="inspectorLabel">
+      <aside id="aircraft-inspector" class="inspector" aria-label="飞机与场景信息" data-i18n-aria-label="inspectorLabel" hidden>
         <section class="flight-section">
           <div class="section-head">
             <span class="section-label" data-i18n="aircraftDetails">飞机详情</span>
@@ -117,6 +140,11 @@
           <div class="flight-identity">
             <div><h2 id="flight-title">飞机 #53</h2><p id="flight-meta" class="subtle">A320 · 045° 航路</p></div>
             <span id="flight-status" class="flight-status">—</span>
+          </div>
+          <div class="aircraft-preview-card">
+            <div class="preview-caption"><span data-i18n="aircraftModel">A320 · 三维外形</span><button id="reset-aircraft-preview" type="button" data-i18n="resetModel">复位</button></div>
+            <div id="aircraft-preview" class="aircraft-preview"></div>
+            <div class="preview-foot"><span data-i18n="modelHint">拖动旋转 · 外形示意</span><span class="mono">37.6 × 35.8 m</span></div>
           </div>
           <dl class="flight-metrics">
             <div><dt data-i18n="currentAltitude">当前高度</dt><dd id="altitude" class="mono">—</dd></div>
@@ -131,19 +159,35 @@
           </div>
           <div class="route-outcome"><span id="outcome-dot" class="outcome-dot"></span><span id="outcome">全程热点暴露</span></div>
         </section>
-        <section class="scene-stats" aria-label="机队统计" data-i18n-aria-label="fleetStats">
-          <h2 class="section-label" data-i18n="fleetStats">机队统计</h2>
-          <dl>
-            <div><dt data-i18n="airborneNow">当前在空中</dt><dd id="airborne" class="mono">—</dd></div>
-            <div><dt data-i18n="inHotspotsNow">当前在热点内</dt><dd id="in-hotspots" class="mono">—</dd></div>
-            <div><dt data-i18n="totalExposed">全程触碰热点</dt><dd id="total-exposed" class="mono">—</dd></div>
-            <div><dt data-i18n="totalChanged">全程调整飞机</dt><dd id="total-changed" class="mono">—</dd></div>
-          </dl>
-        </section>
-        <p class="scale-note"><span aria-hidden="true">↕</span> <span class="scale-note-copy" data-i18n="scaleNote">线框标示显示范围，高度和飞机图标已放大。</span></p>
+        <div class="inspector-action"><button id="focus-aircraft" class="toolbar-button" type="button" data-i18n="focusAircraft" disabled>定位飞机</button></div>
+
       </aside>
+      <section class="timeline" aria-label="仿真时间轴" data-i18n-aria-label="timelineLabel">
+        <div class="playback"><button type="button" id="play" class="play-button" aria-label="播放" data-i18n-aria-label="playAction" disabled>
+              <svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+              <svg class="pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14m8-14v14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+            </button><div class="mono clock"><output id="time-readout" for="time-range">00:43:56</output><span id="time-max">/ 02:08:34</span></div></div>
+        <div class="scrub"><label class="sr-only" for="time-range" data-i18n="simulationTime">仿真时间</label><input type="range" id="time-range" min="0" max="7714" step="1" value="2636" disabled><div id="ticks" class="ticks mono" aria-hidden="true"></div></div>
+        <label class="speed-control" for="speed"><span data-i18n="playbackRate">播放倍率</span>
+            <select id="speed"><option value="30">30×</option><option value="60" selected>60×</option><option value="120">120×</option><option value="300">300×</option></select>
+          </label>
+      </section>
     </div>
-    <footer class="page-foot"><span data-i18n="footerCourse">CS5446 · 凝结尾迹避让</span><span data-i18n="footerScene">v5 · 96 架 A320 · 4 条航线 · 4 个静态热点</span></footer>
+    <section id="comparison-results" class="comparison-results" hidden aria-label="单机方案对照" data-i18n-aria-label="comparisonResults">
+      <div class="comparison-table-heading"><span data-i18n="comparisonResults">单机方案对照</span><span data-i18n="comparisonActionNote">高度与 Mach 为相对 P₀ 的方案调整；相同轨迹与速度合并绘制。</span></div>
+      <div class="comparison-table-scroll"><table>
+        <thead><tr><th scope="col" data-i18n="comparisonPlan">方案</th><th scope="col" data-i18n="comparisonAltitude">高度调整 (ft)</th><th scope="col" data-i18n="comparisonMach">Mach / 调整</th><th scope="col" data-i18n="comparisonCurrent">当前高度 (ft)</th><th scope="col" data-i18n="comparisonFuel">航段燃油 (kg)</th><th scope="col" data-i18n="comparisonTime">航段用时</th><th scope="col" data-i18n="comparisonExposure">全程热点暴露</th><th scope="col" data-i18n="comparisonState">当前状态</th></tr></thead>
+        <tbody id="comparison-rows"></tbody>
+      </table></div>
+    </section>
+    <footer class="page-foot">
+      <span data-i18n="singleScene">单场景实验结果</span>
+      <details class="research-notes"><summary data-i18n="researchNotes">实验说明与来源</summary><div class="research-body">
+        <p id="mappo-availability" data-i18n="mappoPending"></p>
+        <p data-i18n="comparisonGuide"></p><p data-i18n="budgetNote"></p>
+        <p data-i18n="trueScaleTitle"></p><code id="plan-source">—</code><code id="comparison-source" hidden></code>
+      </div></details>
+    </footer>
   </main>
 </body>
 </html>

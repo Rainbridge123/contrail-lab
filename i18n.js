@@ -1,4 +1,4 @@
-import { staticMessages } from "./locale-static.js";
+import { staticMessages } from "./locale-static.js?v=layershub1";
 
 const dynamicMessages = {
   zh: {
@@ -20,8 +20,8 @@ const dynamicMessages = {
     flightAfter: "已离场",
     altitudeAdjustment: "高度 {amount} ft",
     machAdjustment: "Mach {amount}",
-    planExposed: "这条轨迹会触碰热点",
-    planClear: "这条轨迹避开全部热点",
+    planExposed: "热点暴露",
+    planClear: "无热点暴露",
     exposureCount: "{count} 架",
     playAction: "播放",
     pauseAction: "暂停",
@@ -48,8 +48,8 @@ const dynamicMessages = {
     flightAfter: "Exited",
     altitudeAdjustment: "Alt {amount} ft",
     machAdjustment: "Mach {amount}",
-    planExposed: "This trajectory intersects a hotspot",
-    planClear: "This trajectory avoids all hotspots",
+    planExposed: "Hotspot exposure",
+    planClear: "Hotspot-free",
     exposureCount: "{count} aircraft",
     playAction: "Play",
     pauseAction: "Pause",
