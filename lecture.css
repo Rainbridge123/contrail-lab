@@ -297,3 +297,6 @@ body[data-view="setup"] #environment-sidebar[data-section="candidates"] #setup-p
 .profile-path-toggle {display:flex;align-items:center;gap:8px;font-size:12px;margin:2px 0 12px;}.layer-child-caption {font-size:11px;color:#61778c;margin:0 0 8px;}
 
 .matrix-cell:disabled {opacity:.35;cursor:not-allowed;}.action-demo-badge {font-size:12px;color:#003D7C;font-weight:600;padding:0 8px;}
+
+.training-control { display:flex; align-items:center; gap:10px; color:inherit; font-size:14px; }
+.training-control[hidden] { display:none; }

@@ -85,6 +85,23 @@ function start(data) {
   const resultArea=document.createElement('div');resultArea.className='workbench-results';
   workbench.append(resultArea);resultArea.append(document.querySelector('.results'),byId('comparison-results'));
 
+  const trainingSeeds = [...new Set(Object.values(data.plans ?? {}).filter(p => p.algorithm === 'MAPPO').map(p => p.trainingSeed))].sort((a,b)=>a-b);
+  const trainingControl = document.createElement('label');
+  trainingControl.className = 'training-control';
+  const trainingLabel = document.createElement('span');
+  const trainingSelect = document.createElement('select'); trainingSelect.id = 'training-run';
+  for (const seed of trainingSeeds) trainingSelect.add(new Option(String(seed), String(seed)));
+  trainingControl.append(trainingLabel, trainingSelect); toolbar.insertBefore(trainingControl, toolbar.querySelector('.scene-context'));
+  function selectTraining(seed) {
+    for (const arm of ['C','CF','CT','CFT']) {
+      const alias = 'MAPPO-' + arm, key = alias + '-s' + seed;
+      if (!data.plans?.[key]) continue;
+      data.plans[alias] = data.plans[key]; data.stats[alias] = data.stats[key];
+      for (const flight of data.aircraft) flight.assignments[alias] = flight.assignments[key];
+    }
+  }
+  if (trainingSeeds.length) selectTraining(trainingSeeds[0]);
+
   const rawAssignment = (flight, key) => Object.hasOwn(flight.assignments ?? {}, key)
     ? flight.assignments[key]
     : flight[legacyPlanIndexes[key]];
@@ -138,6 +155,21 @@ function start(data) {
     for (const flight of aircraft) counts[flight.plans[key].change]++;
     return [key, counts];
   }));
+  trainingSelect.addEventListener('change', () => {
+    setPlaying(false); selectTraining(Number(trainingSelect.value));
+    for (const key of planIds.filter(key => key.startsWith('MAPPO-'))) {
+      const counts = {all:aircraft.length, none:0, altitude:0, speed:0, both:0};
+      for (let i=0; i<aircraft.length; i++) {
+        const candidate = candidateFor(data.aircraft[i], key), initial = aircraft[i].plans.B0;
+        const altitudeOffset = Math.round(candidate.points[0][2] - initial.points[0][2]);
+        const machOffset = Math.round((candidate.mach - initial.mach)*100)/100;
+        const change = altitudeOffset ? (machOffset ? 'both':'altitude') : (machOffset ? 'speed':'none');
+        aircraft[i].plans[key] = {...candidate, altitudeOffset, machOffset, change}; counts[change]++;
+      }
+      changeCounts[key] = counts;
+    }
+    syncPlanControls(); render(); rebuildComparison(); render();
+  });
   let selectedId = data.focalIds?.find((id) => byAircraft.has(id)) ?? aircraft[0].id;
   const interval = byAircraft.get(selectedId).plans.B0.hitIntervals[0];
   let t = interval ? Math.round((interval.start + interval.end) / 2) : data.entryWindow / 2;
@@ -182,7 +214,7 @@ function start(data) {
     actionLabel.hidden = view === 'setup';
     actionText.textContent=en?'Action':'动作';
     sharedText.textContent=en?'Aircraft ID':'飞机编号';
-    const key = [view, mode, comparisonMethod, aircraftScope, en].join(':');
+    const key = [view, mode, comparisonMethod, aircraftScope, trainingSelect.value, en].join(':');
     const listed = scopedAircraft();
     if (key !== chooserKey) {
       chooserKey = key;
@@ -479,6 +511,8 @@ function start(data) {
     const visibleAircraft=syncAircraftChooser();
     const visibleIds=new Set(visibleAircraft.map(a=>a.id));
     const englishUI=document.documentElement.lang.startsWith('en');
+    trainingControl.hidden = !trainingSeeds.length || view === 'setup' || (view === 'compare' ? comparisonMethod !== 'MAPPO' : family !== 'MAPPO');
+    trainingLabel.textContent = englishUI ? 'Training run' : '训练批次';
     compareAction.textContent=view==='compare'?(englishUI?'← Back to fleet':'← 返回机队'):(englishUI?'Compare aircraft #'+selectedId:'对照飞机 #'+selectedId);
     inspectorCompare.textContent=englishUI?'Compare plans for #'+selectedId:'查看 #'+selectedId+' 的方案对照';
     viewer.setPlaybackDisplay(view==='setup'?null:playbackUI.settings[view],byAircraft.get(selectedId),visibleAircraft,mode,filter,view,aircraftScope);
