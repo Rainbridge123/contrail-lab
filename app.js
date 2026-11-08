@@ -1,7 +1,7 @@
 import { referenceFlight } from './reference-flight.js?v=1';
 import { createPlaybackControls } from './playback-controls.js?v=initiallevels1';
 import { createSetupControls } from './setup-controls.js?v=actionplay1';
-import { createViewer } from "./viewer.js?v=spatial1";
+import { createViewer } from "./viewer.js?v=labelavoid1";
 import { createAircraftPreview } from "./aircraft-model.js?v=pptaircraft1";
 import { applyLanguage, setLanguage, t as translate } from "./i18n.js?v=defaults1";
 

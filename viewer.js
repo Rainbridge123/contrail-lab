@@ -2,7 +2,7 @@ import { createSetupLayer } from './setup-layer.js?v=actionplay1';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { createAircraftParts, aircraftMaterial } from './aircraft-model.js?v=pptaircraft1';
-import { createComparisonLayer } from './comparison-layer.js?v=spatial1';
+import { createComparisonLayer } from './comparison-layer.js?v=labelavoid1';
 
 const FLOOR_FT = 26000;
 const CEILING_FT = 42000;
@@ -287,6 +287,7 @@ export function createViewer(container, data, onSelect) {
             object.scale.set(width, width / 4, 1);
           }
         });
+        comparison?.layoutLabels(camera, container.clientWidth, container.clientHeight);
         renderer.render(scene, camera);
       });
     }

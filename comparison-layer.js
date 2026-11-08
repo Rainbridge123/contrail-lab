@@ -14,6 +14,7 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
     sprite.scale.set(canvas.width / canvas.height * 9, 9, 1); sprite.renderOrder = 5;
     return sprite;
   }
+  const annotationSprites = [];
   const object = new THREE.Group(), guides = new THREE.Group(), labels = new Map(), markers = new Map();
   const direction = new THREE.Vector3(flight.dx, 0, -flight.dy).normalize();
   const at = (s, altitude) => position(flight.x + flight.dx * s / flight.length, flight.y + flight.dy * s / flight.length, altitude);
@@ -64,7 +65,7 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
   for (const group of groups) {
     const name = compactLabel(group.label, group.color);
     name.visible = false;
-    object.add(name); labels.set(group.id, name);
+    object.add(name); labels.set(group.id, name); annotationSprites.push(name);
     const marker = new THREE.Mesh(new THREE.SphereGeometry(1.65, 12, 8), new THREE.MeshBasicMaterial({color: group.color, toneMapped: false, depthTest: false}));
     marker.renderOrder = 4; marker.visible = false; marker.userData.annotation = true;
     object.add(marker); markers.set(group.id, marker);
@@ -74,7 +75,7 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
     const endLabel = compactLabel(text, group.color);
     const [, s, h] = group.plan.points.at(-1);
     endLabel.position.copy(at(s - 35, h)); endLabel.position.y += 7;
-    endLabel.userData.fullTrajectory = true; object.add(endLabel);
+    endLabel.userData.fullTrajectory = true; object.add(endLabel); annotationSprites.push(endLabel);
   }
   for (let altitude = bottomFt; altitude <= topFt; altitude += 2000) {
     guides.add(line([at(0, altitude), at(flight.length, altitude)], 0xdde6ee, .8));
@@ -115,6 +116,10 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
     setProfile(profile) {
       const next = profile ? 1.5 : 1, ratio = next / verticalScale;
       if (ratio === 1) return;
+      for (const sprite of annotationSprites) {
+        if (sprite.userData.labelShift) sprite.position.sub(sprite.userData.labelShift);
+        sprite.userData.labelShift = null;
+      }
       object.traverse(child => {
         child.position.y *= ratio;
         if (child.isSprite || child.userData.annotation) return;
@@ -131,8 +136,40 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
     },
     setHotspotsVisible(visible){guides.children.forEach(child=>{if(child.userData.hotspot)child.visible=visible;});},
     setPathsVisible(visible) { object.children.forEach(child=>{if(child.userData.fullTrajectory)child.visible=visible;}); },
+    layoutLabels(camera, width, height) {
+      if (!width || !height) return;
+      camera.updateMatrixWorld();
+      const occupied = [];
+      for (const sprite of annotationSprites) {
+        // Restore the genuine anchor before each screen-space layout pass.
+        if (sprite.userData.labelShift) sprite.position.sub(sprite.userData.labelShift);
+        sprite.userData.labelShift = null;
+        if (!sprite.visible) continue;
+        const anchor = sprite.position.clone();
+        const projected = anchor.clone().project(camera);
+        if (projected.z < -1 || projected.z > 1) continue;
+        const size = sprite.scale.clone();
+        const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+        const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+        const pRight = anchor.clone().addScaledVector(right, size.x / 2).project(camera);
+        const pUp = anchor.clone().addScaledVector(up, size.y / 2).project(camera);
+        const halfW = Math.abs(pRight.x - projected.x) * width / 2 + 4;
+        const halfH = Math.max(7, Math.abs(pUp.y - projected.y) * height / 2) + 3;
+        const x = (projected.x + 1) * width / 2;
+        let y = (1 - projected.y) * height / 2;
+        for (let attempt=0; attempt<30; attempt++) {
+          const collision = occupied.find(r => Math.abs(r.x-x)<r.w+halfW && Math.abs(r.y-y)<r.h+halfH);
+          if (!collision) break;
+          y = collision.y - collision.h - halfH - 2;
+        }
+        const adjusted = new THREE.Vector3(projected.x, 1 - y*2/height, projected.z).unproject(camera);
+        sprite.userData.labelShift = adjusted.clone().sub(anchor);
+        sprite.position.copy(adjusted);
+        occupied.push({x,y,w:halfW,h:halfH});
+      }
+    },
     updateLabels(frames, trueScale) {
-      const placed = [];
+
       const byId = new Map(frames.map(frame => [frame.id, frame]));
       for (const [id, sprite] of labels) {
         const frame = byId.get(id);
@@ -140,15 +177,13 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
         marker.visible = Boolean(frame) && guides.visible;
         sprite.visible = Boolean(frame);
         if (frame) {
+          sprite.userData.labelShift = null;
           sprite.position.copy(position(frame.x, frame.y, frame.z));
           sprite.position.y *= verticalScale;
           marker.position.copy(sprite.position);
           sprite.position.addScaledVector(direction, 14);
           sprite.position.y += trueScale ? 7 : 11;
-          // Separate annotation baselines when timing variants are close together.
-          // Aircraft positions and trajectories remain untouched.
-          while (placed.some(p => Math.abs(p.y-sprite.position.y)<10 && Math.hypot(p.x-sprite.position.x,p.z-sprite.position.z)<35)) sprite.position.y += 11;
-          placed.push(sprite.position.clone());
+
         }
       }
     },
