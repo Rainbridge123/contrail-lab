@@ -2,7 +2,7 @@ import { createSetupLayer } from './setup-layer.js?v=actionplay1';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { createAircraftParts, aircraftMaterial } from './aircraft-model.js?v=pptaircraft1';
-import { createComparisonLayer } from './comparison-layer.js?v=selection2';
+import { createComparisonLayer } from './comparison-layer.js?v=spatial1';
 
 const FLOOR_FT = 26000;
 const CEILING_FT = 42000;
@@ -393,6 +393,9 @@ export function createViewer(container, data, onSelect) {
       // Horizontal scene coordinates are NM; the model geometry is in metres.
       // At true scale, selection must not enlarge the aircraft.
       marker.scale.setScalar(trueScale ? 1 / METRES_PER_NM : DISPLAY_UNITS_PER_METRE * aircraftScale * (frame.demo ? 6 : frame.comparison ? 3 : selected ? 1.1 : 1));
+      // At entry, timing variants can occupy exactly the same position.
+      // Draw one airframe there; retain all plan frames for timing and labels.
+      if (frame.comparison && active.slice(0,i).some(other => other.comparison && other.point.distanceToSquared(frame.point)<1e-10)) marker.scale.setScalar(0);
       marker.updateMatrix();
       aircraftMeshes.forEach(mesh => mesh.setMatrixAt(i, marker.matrix));
       const changeColor = CHANGE_COLORS.get(frame.change);

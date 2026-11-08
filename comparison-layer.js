@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { groupSpatialPlans } from './comparison-data.js?v=spatial1';
 
 export function createComparisonLayer(flight, groups, hotspots, helpers) {
   const { position, line, label } = helpers;
@@ -22,7 +23,8 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
   const centre = at(flight.length / 2, (bottomFt + topFt) / 2);
   const fitPoints = [-48, flight.length + 40].flatMap(s => [at(s, bottomFt - 1300), at(s, topFt + 800)]);
   object.add(guides);
-  for (const group of groups) {
+  const spatialGroups = groupSpatialPlans(groups);
+  for (const group of spatialGroups) {
     const points = group.plan.points.map(([, s, altitude]) => at(s, altitude));
     const path = new THREE.Group();
     const curve = new THREE.CurvePath();
@@ -58,6 +60,8 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
       stroke.renderOrder = 3; path.add(stroke);
     }
     path.userData.fullTrajectory = true; object.add(path);
+  }
+  for (const group of groups) {
     const name = compactLabel(group.label, group.color);
     name.visible = false;
     object.add(name); labels.set(group.id, name);
@@ -65,16 +69,8 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
     marker.renderOrder = 4; marker.visible = false; marker.userData.annotation = true;
     object.add(marker); markers.set(group.id, marker);
   }
-  // Merge only the static spatial label. Timing and aircraft markers remain
-  // independent when different Mach choices share an altitude profile.
-  const spatialLabels = new Map();
-  for (const group of groups) {
-    const key = JSON.stringify(group.plan.points.map(([, s, h]) => [s, h]));
-    if (!spatialLabels.has(key)) spatialLabels.set(key, {group, names: []});
-    spatialLabels.get(key).names.push(group.label);
-  }
-  for (const {group, names} of spatialLabels.values()) {
-    const text = names.join(' / ');
+  for (const group of spatialGroups) {
+    const text = group.label;
     const endLabel = compactLabel(text, group.color);
     const [, s, h] = group.plan.points.at(-1);
     endLabel.position.copy(at(s - 35, h)); endLabel.position.y += 7;
@@ -136,6 +132,7 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
     setHotspotsVisible(visible){guides.children.forEach(child=>{if(child.userData.hotspot)child.visible=visible;});},
     setPathsVisible(visible) { object.children.forEach(child=>{if(child.userData.fullTrajectory)child.visible=visible;}); },
     updateLabels(frames, trueScale) {
+      const placed = [];
       const byId = new Map(frames.map(frame => [frame.id, frame]));
       for (const [id, sprite] of labels) {
         const frame = byId.get(id);
@@ -148,6 +145,10 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
           marker.position.copy(sprite.position);
           sprite.position.addScaledVector(direction, 14);
           sprite.position.y += trueScale ? 7 : 11;
+          // Separate annotation baselines when timing variants are close together.
+          // Aircraft positions and trajectories remain untouched.
+          while (placed.some(p => Math.abs(p.y-sprite.position.y)<10 && Math.hypot(p.x-sprite.position.x,p.z-sprite.position.z)<35)) sprite.position.y += 11;
+          placed.push(sprite.position.clone());
         }
       }
     },
