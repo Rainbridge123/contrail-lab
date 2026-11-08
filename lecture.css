@@ -268,3 +268,24 @@ body[data-view="setup"] #environment-sidebar[data-section="candidates"] {grid-te
 .matrix-selection {padding:9px 7px;margin-top:10px;background:#eef3f8;border-left:3px solid #EF7C00;color:#003D7C;font-size:11px;font-variant-numeric:tabular-nums;}
 .matrix-rules {font-size:12px;color:#355674;border-top:1px solid #d9e4ee;padding-top:10px;}
 .matrix-rules summary {cursor:pointer;}
+
+body[data-view="setup"] #environment-sidebar[data-section="candidates"] {grid-template-rows:minmax(0,2.8fr) minmax(100px,1fr);}
+#environment-sidebar[data-section="candidates"] #setup-parameters footer {display:none;}
+.matrix-info {border:0;background:transparent;color:#61778c;font-size:18px;padding:0 3px;cursor:pointer;}
+.action-detail-popover {position:fixed;inset:auto;margin:0;box-sizing:border-box;width:280px;max-width:calc(100vw - 20px);max-height:calc(100vh - 20px);overflow:auto;padding:0;border:1px solid #b9cde0;border-radius:8px;background:#fafdff;color:#24435d;box-shadow:0 10px 32px #003d7c22;font:12px/1.6 Inter,system-ui,sans-serif;}
+.action-detail-popover::backdrop {background:transparent;}
+.action-detail-popover header {display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #dce5ed;color:#003D7C;}
+.action-detail-popover header button {border:0;background:none;color:#61778c;font-size:20px;cursor:pointer;}
+.action-detail-content {padding:12px 14px;}
+.action-detail-content dl {display:grid;grid-template-columns:1fr auto;gap:8px;margin:0;}
+.action-detail-content dt {color:#61778c;}.action-detail-content dd {margin:0;font-weight:600;}
+.action-detail-content p {color:#61778c;font-size:11px;margin:12px 0 0;}
+.action-detail-content table {width:100%;border-collapse:collapse;font-size:11px;}.action-detail-content th,.action-detail-content td {padding:8px 4px;border-bottom:1px solid #dce5ed;text-align:left;vertical-align:top;}.action-detail-content th {font-weight:500;color:#61778c;width:38%;}
+@media(max-width:800px){body[data-view="setup"] #environment-sidebar[data-section="candidates"] {grid-template-rows:350px 240px;}}
+body[data-view="setup"] #environment-sidebar[data-section="candidates"] {top:48px;bottom:12px;grid-template-rows:minmax(0,1fr) 100px;}
+#environment-sidebar[data-section="candidates"] #setup-parameters header {padding:10px 14px;}
+#environment-sidebar[data-section="candidates"] #setup-parameters header small {display:none;}
+#environment-sidebar[data-section="candidates"] .environment-content {padding-top:10px;}
+#environment-sidebar[data-section="candidates"] .matrix-cell {height:36px;font-size:13px;}
+#environment-sidebar[data-section="candidates"] .matrix-cell small {font-size:8px;margin-top:0;}
+@media(max-width:800px){body[data-view="setup"] #environment-sidebar[data-section="candidates"] {inset:auto;grid-template-rows:300px 240px;}}

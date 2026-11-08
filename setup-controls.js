@@ -8,6 +8,20 @@ export function createSetupControls(aircraft,onChange){
  const layerTitle=document.createElement('header');layerBox.append(layerTitle);
  const layerPanel=document.createElement('div');layerPanel.id='setup-layer-controls';layerBox.append(layerPanel);
  const en=()=>document.documentElement.lang.startsWith('en');const t=(a,b)=>en()?b:a;
+ const popup=document.createElement('aside');popup.id='action-detail-popover';popup.className='action-detail-popover';popup.setAttribute('popover','auto');popup.setAttribute('role','dialog');document.body.append(popup);
+ let popupPinned=false,popupAnchor=null;
+ popup.addEventListener('toggle',e=>{if(e.newState==='closed')popupPinned=false;});
+ popup.addEventListener('mouseleave',()=>{if(!popupPinned)popup.hidePopover();});
+ function showPopup(anchor,title,content,pin=false){
+  popupAnchor=anchor;popupPinned=pin;
+  popup.setAttribute('aria-label',title);
+  popup.innerHTML=`<header><strong>${title}</strong><button type="button" aria-label="${t('关闭','Close')}">×</button></header><div class="action-detail-content">${content}</div>`;
+  popup.querySelector('button').onclick=()=>{popupPinned=true;popupAnchor?.focus();popup.hidePopover();};
+  popup.showPopover();
+  const r=panel.getBoundingClientRect(),width=popup.offsetWidth,height=popup.offsetHeight;
+  popup.style.left=Math.max(10,r.left-width-14)+'px';
+  popup.style.top=Math.max(10,Math.min(anchor.getBoundingClientRect().top,window.innerHeight-height-10))+'px';
+ }
  let matrixChoice=0;
  let active='space',demoRaf=0,demoLast=null, demoOpen=false;
  function applySectionLayers(section){
@@ -25,6 +39,7 @@ export function createSetupControls(aircraft,onChange){
  const checks=(key,values,format)=>`<div class="setup-options">${values.map(v=>`<label><input type="checkbox" data-option="${key}" value="${v}" ${state[key].includes(v)?'checked':''}>${format(v)}</label>`).join('')}</div>`;
  const row=(label,value)=>`<tr><th scope="row">${label}</th><td>${value}</td></tr>`;
  function render(){
+  popup.hidePopover();
   const layerScroll=layerPanel.scrollTop;
   layerTitle.textContent=t('图层显示','Scene layers');
   const rulesScroll=panel.querySelector(".environment-content")?.scrollTop??0,toolsScroll=panel.querySelector(".environment-control-region")?.scrollTop??0;
@@ -55,24 +70,30 @@ export function createSetupControls(aircraft,onChange){
     // Presentation P0..P8 labels encode offsets, not the generator's raw indices.
     const columns=[{dm:-.06,base:6},{dm:-.03,base:3},{dm:0,base:0}];
     const matrix=`<section class="action-matrix" aria-label="${t('相对 P₀ 的候选组合','Candidate combinations relative to P₀')}">
-      <div class="matrix-heading">${t('9 种候选组合','9 candidate combinations')}<span>Δh × ΔMach</span></div>
+      <div class="matrix-heading">${t('9 种候选组合','9 candidate combinations')}<button type="button" class="matrix-info" aria-label="${t('生成规则与说明','Generation rules and notes')}">ⓘ</button></div>
       <div class="matrix-grid"><span></span>${columns.map(c=>`<span class="matrix-axis">${c.dm===0?'0':c.dm.toFixed(2).replace('-','−')}</span>`).join('')}
       ${[0,-2000,-4000].map((dh,rowIndex)=>`<span class="matrix-axis">${dh===0?'0 ft':dh.toLocaleString().replace('-','−')+' ft'}</span>${columns.map(c=>{const id=c.base+rowIndex;return `<button type="button" class="matrix-cell ${id===0?'matrix-origin':''}" data-candidate="${id}" aria-pressed="${id===matrixChoice}" aria-label="P${id}: Δh ${dh} ft, ΔMach ${c.dm}">P${id}${id===0?`<small>${t('起始方案','Start plan')}</small>`:''}</button>`;}).join('')}`).join('')}</div>
       <div class="matrix-axis-caption">${t('横轴 ΔMach · 纵轴 Δh（相对 P₀）','Columns: ΔMach · Rows: Δh from P₀')}</div>
-      <div class="matrix-selection" aria-live="polite"></div>
-      <div class="matrix-note">${t('组合示意 · 需通过性能可行性检查','Combination diagram · Performance feasibility required')}</div>
     </section>`;
     rules.querySelector('h3').remove();
     rules.insertAdjacentHTML('afterbegin',matrix);
     const table=rules.querySelector('table');
-    const details=document.createElement('details');details.className='matrix-rules';
-    const summary=document.createElement('summary');summary.textContent=t('P₀ 搜索与生成规则','P₀ search & generation rules');details.append(summary,table);rules.append(details);
-    function updateMatrix(){
-      const row=matrixChoice%3,dm=-Math.floor(matrixChoice/3)*.03,dh=-row*2000;
-      rules.querySelectorAll('[data-candidate]').forEach(button=>button.setAttribute('aria-pressed',Number(button.dataset.candidate)===matrixChoice));
-      rules.querySelector('.matrix-selection').textContent=`P${matrixChoice} · Δh ${dh.toLocaleString()} ft · ΔMach ${dm.toFixed(2)}`;
+    const rulesHTML=table.outerHTML+`<p>${t('组合示意；候选需通过性能可行性检查。','Combination diagram; candidates must pass performance feasibility checks.')}</p><p>${notes.candidates}</p>`;
+    table.remove();rules.querySelector('.environment-note').remove();
+    const info=rules.querySelector('.matrix-info');
+    info.onclick=()=>showPopup(info,t('生成规则','Generation rules'),rulesHTML,true);
+    function candidateDetails(button,pin){
+      const id=Number(button.dataset.candidate),row=id%3,dm=-Math.floor(id/3)*.03,dh=-row*2000;
+      showPopup(button,`P${id}`,`<dl><dt>${t('高度偏移','Altitude offset')}</dt><dd>${dh.toLocaleString()} ft</dd><dt>${t('Mach 偏移','Mach offset')}</dt><dd>${dm.toFixed(2)}</dd></dl><p>${t('相对 P₀ · 横向航路与入场时刻固定','Relative to P₀ · Lateral route and entry time fixed')}</p>`,pin);
     }
-    rules.querySelectorAll('[data-candidate]').forEach(button=>button.onclick=()=>{matrixChoice=Number(button.dataset.candidate);updateMatrix();});updateMatrix();
+    rules.querySelectorAll('[data-candidate]').forEach(button=>{
+      button.onmouseenter=()=>{if(!popupPinned)candidateDetails(button,false);};
+      button.onfocus=()=>{if(!popupPinned)candidateDetails(button,false);};
+      button.onmouseleave=e=>{if(!popupPinned&&!popup.contains(e.relatedTarget))popup.hidePopover();};
+      button.onblur=e=>{if(!popupPinned&&!popup.contains(e.relatedTarget))popup.hidePopover();};
+      button.onclick=()=>{matrixChoice=Number(button.dataset.candidate);rules.querySelectorAll('[data-candidate]').forEach(b=>b.setAttribute('aria-pressed',b===button));candidateDetails(button,true);};
+    });
+
   }
   const children={space:`<table><tbody>${[layerRows.space[0],...(state.routePlanes?[layerRows.space[1]]:[])].join('')}</tbody></table>`,aircraft:checks('levels',[33000,35000,37000],v=>v.toLocaleString()+' ft'),candidates:`<table><tbody>${layerRows.candidates.join('')}</tbody></table>`};
   layerPanel.innerHTML=Object.entries(layerNames).map(([k,v])=>`<section class="layer-group"><label class="layer-parent"><input type="checkbox" data-layer="${k}" ${state[k]?'checked':''}>${v}</label>${children[k]&&state[k]?`<div class="layer-children">${children[k]}</div>`:''}</section>`).join('');
