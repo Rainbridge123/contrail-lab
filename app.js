@@ -1,11 +1,11 @@
 import { referenceFlight } from './reference-flight.js?v=1';
 import { createPlaybackControls } from './playback-controls.js?v=initiallevels1';
 import { createSetupControls } from './setup-controls.js?v=actionplay1';
-import { createViewer } from "./viewer.js?v=badges1";
+import { createViewer } from "./viewer.js?v=speed1";
 import { createAircraftPreview } from "./aircraft-model.js?v=pptaircraft1";
 import { applyLanguage, setLanguage, t as translate } from "./i18n.js?v=defaults1";
 
-import { interpolate, samplePlan, groupComparisonPlans, comparisonFrame } from "./comparison-data.js?v=compare6";
+import { interpolate, samplePlan, groupComparisonPlans, comparisonFrame } from "./comparison-data.js?v=speed1";
 
 const byId = (id) => document.getElementById(id);
 const dom = {

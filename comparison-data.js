@@ -18,6 +18,18 @@ export function interpolate(points, time) {
   return [s0 + (s1 - s0) * fraction, h0 + (h1 - h0) * fraction];
 }
 
+// Current replay speed from the recorded distance/time segment (NM/s → kt).
+export function planSpeedKnots(points, time) {
+  if (time < points[0][0] || time > points.at(-1)[0]) return null;
+  let lo = 0, hi = points.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >>> 1;
+    if (points[mid][0] <= time) lo = mid; else hi = mid;
+  }
+  const dt = points[hi][0] - points[lo][0];
+  return dt > 0 ? (points[hi][1] - points[lo][1]) / dt * 3600 : null;
+}
+
 export function samplePlan(plan, time) {
   if (time < plan.points[0][0]) return { state: 'before', point: null };
   if (time > plan.points.at(-1)[0]) return { state: 'after', point: null };
@@ -47,7 +59,7 @@ export function comparisonFrame(flight, group, time) {
   const [s, z] = sample.point;
   return { id: group.id, x: flight.x + flight.dx * s / flight.length,
     y: flight.y + flight.dy * s / flight.length, z, heading: flight.route.heading,
-    color: group.color, comparison: true, exposed: sample.state === 'exposed' };
+    speedKnots: planSpeedKnots(group.plan.points, time), color: group.color, comparison: true, exposed: sample.state === 'exposed' };
 }
 
 // Compare geometry independently of time and Mach-dependent sampling density.

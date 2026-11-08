@@ -2,7 +2,7 @@ import { createSetupLayer } from './setup-layer.js?v=actionplay1';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { createAircraftParts, aircraftMaterial } from './aircraft-model.js?v=pptaircraft1';
-import { createComparisonLayer } from './comparison-layer.js?v=badges1';
+import { createComparisonLayer } from './comparison-layer.js?v=speed1';
 
 const FLOOR_FT = 26000;
 const CEILING_FT = 42000;

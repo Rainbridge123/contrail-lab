@@ -7,18 +7,27 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
     const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
     const scale = 3, font = '600 13px system-ui, sans-serif';
     ctx.font = font;
-    const width = Math.ceil(ctx.measureText(text).width) + 26, height = 26;
+    const width = Math.ceil(ctx.measureText(text).width) + 102, height = 26;
     canvas.width = width * scale; canvas.height = height * scale;
-    ctx.scale(scale, scale);
-    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#c8d4df'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.roundRect(.5,.5,width-1,height-1,5); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = color; ctx.fillRect(7,8,3,10);
-    ctx.font = font; ctx.fillStyle = '#15334c'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillText(text,16,height/2);
     const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
     map.generateMipmaps = false; map.minFilter = THREE.LinearFilter;
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({map, transparent:true, depthTest:false, depthWrite:false, toneMapped:false}));
     sprite.userData.pixelSize = [width,height]; sprite.renderOrder = 6;
+    let previousSpeed;
+    sprite.userData.setSpeed = speed => {
+      const value = Number.isFinite(speed) ? Math.round(speed) + ' kt' : '— kt';
+      if (value === previousSpeed) return;
+      previousSpeed = value;
+      ctx.setTransform(scale,0,0,scale,0,0); ctx.clearRect(0,0,width,height);
+      ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#c8d4df'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(.5,.5,width-1,height-1,5); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = color; ctx.fillRect(7,8,3,10);
+      ctx.font = font; ctx.fillStyle = '#15334c'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(text,16,height/2);
+      ctx.font = '500 13px system-ui, sans-serif'; ctx.fillStyle = '#3d5870'; ctx.textAlign = 'right';
+      ctx.fillText(value,width-9,height/2); map.needsUpdate = true;
+    };
+    sprite.userData.setSpeed(null);
     return sprite;
   }
   const annotationSprites = [];
@@ -187,6 +196,7 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
         marker.visible = Boolean(frame) && guides.visible;
         sprite.visible = Boolean(frame);
         if (frame) {
+          sprite.userData.setSpeed(frame.speedKnots);
           sprite.userData.labelShift = null;
           sprite.position.copy(position(frame.x, frame.y, frame.z));
           sprite.position.y *= verticalScale;
