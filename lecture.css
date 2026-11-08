@@ -295,3 +295,5 @@ body[data-view="setup"] #environment-sidebar[data-section="candidates"] #setup-p
 .p0-steps {margin:0;padding-left:19px;}.p0-steps li+li {margin-top:8px;}.p0-objective {margin-top:12px;padding:9px 12px;background:#eaf1f8;border-left:3px solid #EF7C00;color:#003D7C;font-variant-numeric:tabular-nums;}
 
 .profile-path-toggle {display:flex;align-items:center;gap:8px;font-size:12px;margin:2px 0 12px;}.layer-child-caption {font-size:11px;color:#61778c;margin:0 0 8px;}
+
+.matrix-cell:disabled {opacity:.35;cursor:not-allowed;}.action-demo-badge {font-size:12px;color:#003D7C;font-weight:600;padding:0 8px;}

@@ -1,5 +1,5 @@
 export function createSetupControls(aircraft,onChange){
- const state={space:true,time:true,aircraft:true,hotspots:true,candidates:false,altitude:0,mach:0,id:53,levels:[33000,35000,37000],candidateLevels:[0,-2000,-4000],referenceProfiles:true,routePlanes:false,routes:[0,45,90,135],demo:false,demoPhase:"climb",demoMach:.78,demoSeconds:0,demoPlaying:false,demoDuration:5000,demoRate:60};
+ const state={space:true,time:true,aircraft:true,hotspots:true,candidates:false,altitude:0,mach:0,id:53,levels:[33000,35000,37000],candidateLevels:[0,-2000,-4000],referenceProfiles:true,routePlanes:false,routes:[0,45,90,135],demo:false,demoPhase:"climb",demoMach:.78,demoSeconds:0,demoPlaying:false,demoDuration:5000,demoRate:60,demoCandidate:null};
  if(!aircraft.some(a=>a.id===state.id))state.id=aircraft[0].id;
  const host=document.createElement('section');host.id='setup-controls';host.hidden=true;document.querySelector('#workbench-context').append(host);
  const sidebar=document.createElement('div');sidebar.id='environment-sidebar';document.querySelector('.stage').append(sidebar);
@@ -25,12 +25,12 @@ export function createSetupControls(aircraft,onChange){
  let matrixChoice=0;
  let active='space',demoRaf=0,demoLast=null, demoOpen=false;
  function applySectionLayers(section){
-  Object.assign(state,{space:true,aircraft:false,time:false,hotspots:false,candidates:false,referenceProfiles:true,routePlanes:false,routes:[0,45,90,135],levels:[33000,35000,37000],demo:false});
+  Object.assign(state,{space:true,aircraft:false,time:false,hotspots:false,candidates:false,referenceProfiles:true,routePlanes:false,routes:[0,45,90,135],levels:[33000,35000,37000],demo:false,demoCandidate:null});
   if(section==='space')state.routePlanes=true;
   if(section==='aircraft')state.aircraft=true;
   if(section==='time')Object.assign(state,{aircraft:true,time:true,referenceProfiles:false});
   if(section==='hotspots')Object.assign(state,{aircraft:true,hotspots:true});
-  if(section==='candidates')Object.assign(state,{aircraft:true,demo:true,demoSeconds:0});
+  if(section==='candidates')Object.assign(state,{aircraft:true,demo:true,demoSeconds:0,demoCandidate:0});
  }
  applySectionLayers(active);
  function pauseDemo(){state.demoPlaying=false;cancelAnimationFrame(demoRaf);demoLast=null;}
@@ -67,12 +67,16 @@ export function createSetupControls(aircraft,onChange){
   sidebar.dataset.section=active;
   if(active==='candidates') {
     const rules=panel.querySelector('.environment-rules');
+    const selectedFlight=aircraft.find(a=>a.id===state.id);
+    const candidateFor=id=>selectedFlight.candidates.find(c=>c.i===8-id&&c.valid!==false);
+    if(state.demoCandidate!==null&&!candidateFor(state.demoCandidate))state.demoCandidate=0;
+    matrixChoice=state.demoCandidate??matrixChoice;
     // Presentation P0..P8 labels encode offsets, not the generator's raw indices.
     const columns=[{dm:-.06,base:6},{dm:-.03,base:3},{dm:0,base:0}];
     const matrix=`<section class="action-matrix" aria-label="${t('相对 P₀ 的候选组合','Candidate combinations relative to P₀')}">
       <div class="matrix-heading">${t('9 种候选组合','9 candidate combinations')}<button type="button" class="matrix-info" aria-label="${t('生成规则与说明','Generation rules and notes')}">ⓘ</button></div>
       <div class="matrix-grid"><span></span>${columns.map(c=>`<span class="matrix-axis">${c.dm===0?'0':c.dm.toFixed(2).replace('-','−')}</span>`).join('')}
-      ${[0,-2000,-4000].map((dh,rowIndex)=>`<span class="matrix-axis">${dh===0?'0 ft':dh.toLocaleString().replace('-','−')+' ft'}</span>${columns.map(c=>{const id=c.base+rowIndex;return `<button type="button" class="matrix-cell ${id===0?'matrix-origin':''}" data-candidate="${id}" aria-pressed="${id===matrixChoice}" aria-label="P${id}: Δh ${dh} ft, ΔMach ${c.dm}">P${id}${id===0?`<small>${t('起始方案','Start plan')}</small>`:''}</button>`;}).join('')}`).join('')}</div>
+      ${[0,-2000,-4000].map((dh,rowIndex)=>`<span class="matrix-axis">${dh===0?'0 ft':dh.toLocaleString().replace('-','−')+' ft'}</span>${columns.map(c=>{const id=c.base+rowIndex;return `<button type="button" class="matrix-cell ${id===0?'matrix-origin':''}" data-candidate="${id}" ${!candidateFor(id)?`disabled title="${t('不可行候选','Infeasible candidate')}"`:""} aria-pressed="${id===matrixChoice}" aria-label="P${id}: Δh ${dh} ft, ΔMach ${c.dm}">P${id}${id===0?`<small>${t('起始方案','Start plan')}</small>`:''}</button>`;}).join('')}`).join('')}</div>
       <div class="matrix-axis-caption">${t('横轴 ΔMach · 纵轴 Δh（相对 P₀）','Columns: ΔMach · Rows: Δh from P₀')}</div>
     </section>`;
     rules.querySelector('h3').remove();
@@ -94,15 +98,25 @@ export function createSetupControls(aircraft,onChange){
       button.onfocus=()=>{if(!popupPinned)candidateDetails(button,false);};
       button.onmouseleave=e=>{if(!popupPinned&&!popup.contains(e.relatedTarget))popup.hidePopover();};
       button.onblur=e=>{if(!popupPinned&&!popup.contains(e.relatedTarget))popup.hidePopover();};
-      button.onclick=()=>{matrixChoice=Number(button.dataset.candidate);rules.querySelectorAll('[data-candidate]').forEach(b=>b.setAttribute('aria-pressed',b===button));candidateDetails(button,true);};
+      button.onclick=()=>{
+        pauseDemo();matrixChoice=Number(button.dataset.candidate);state.demoCandidate=matrixChoice;
+        state.demo=true;state.aircraft=true;state.referenceProfiles=true;state.time=false;state.demoSeconds=0;
+        render();onChange(state);state.demoPlaying=true;demoLast=null;demoRaf=requestAnimationFrame(animateDemo);render();
+      };
     });
 
   }
-  const children={space:`<table><tbody>${[layerRows.space[0],...(state.routePlanes?[layerRows.space[1]]:[])].join('')}</tbody></table>`,aircraft:`<label class="profile-path-toggle"><input id="setup-reference-paths" type="checkbox" ${state.referenceProfiles?'checked':''}>${state.demo?t('完整参考轨迹','Full reference trajectory'):t('参考轨迹带','Reference trajectory ribbons')}</label><div class="layer-child-caption">${t('初始高度面','Initial altitude planes')}</div>${checks('levels',[33000,35000,37000],v=>v.toLocaleString()+' ft')}`,candidates:`<table><tbody>${layerRows.candidates.join('')}</tbody></table>`};
+  const children={space:`<table><tbody>${[layerRows.space[0],...(state.routePlanes?[layerRows.space[1]]:[])].join('')}</tbody></table>`,aircraft:`<label class="profile-path-toggle"><input id="setup-reference-paths" type="checkbox" ${state.referenceProfiles?'checked':''}>${state.demo?(state.demoCandidate!==null?t('完整候选轨迹','Full candidate trajectory'):t('完整参考轨迹','Full reference trajectory')):t('参考轨迹带','Reference trajectory ribbons')}</label><div class="layer-child-caption">${t('初始高度面','Initial altitude planes')}</div>${checks('levels',[33000,35000,37000],v=>v.toLocaleString()+' ft')}`,candidates:`<table><tbody>${layerRows.candidates.join('')}</tbody></table>`};
   layerPanel.innerHTML=Object.entries(layerNames).map(([k,v])=>`<section class="layer-group"><label class="layer-parent"><input type="checkbox" data-layer="${k}" ${state[k]?'checked':''}>${v}</label>${children[k]&&state[k]?`<div class="layer-children">${children[k]}</div>`:''}</section>`).join('');
   layerPanel.scrollTop=layerScroll;
   panel.querySelector('.environment-control-region').replaceChildren();
   host.insertAdjacentHTML('afterbegin',`<div class="demo-launchbar"><div class="demo-mode-switch"><button data-demo-mode="overview" aria-pressed="${!state.demo}">${t('整体场景','Scene overview')}</button><button data-demo-mode="single" aria-pressed="${state.demo}">${t('单机演示','Single-aircraft demo')}</button></div>${state.demo?`<label>${t('剖面','Profile')} <select id="demo-phase">${[['cruise',t('巡航','Cruise')],['climb',t('爬升','Climb')],['descent',t('下降','Descent')]].map(([v,n])=>`<option value="${v}" ${state.demoPhase===v?'selected':''}>${n}</option>`).join('')}</select></label><label>Mach <select id="demo-mach">${[.76,.78,.80].map(m=>`<option value="${m}" ${state.demoMach===m?'selected':''}>${m.toFixed(2)}</option>`).join('')}</select></label><button id="demo-play">${state.demoPlaying?t('暂停','Pause'):t('播放','Play')}</button><button id="demo-reset">${t('重播','Restart')}</button><div class="demo-live-values"><span id="demo-height">—</span><span id="demo-speed">—</span><span id="demo-distance">—</span></div><label class="demo-scrubber"><span id="demo-time">—</span><input aria-label="${t('单机演示时间','Demo time')}" id="demo-progress" type="range" min="0" max="${state.demoDuration}" value="${state.demoSeconds}" step="1"><select id="demo-rate" aria-label="${t('播放倍率','Playback speed')}">${[1,10,30,60,120,300].map(rate=>`<option value="${rate}" ${rate===state.demoRate?'selected':''}>${rate}×</option>`).join('')}</select></label>`:''}</div>`);
+  if(state.demo&&state.demoCandidate!==null){
+    const flight=aircraft.find(a=>a.id===state.id),candidate=flight.candidates.find(c=>c.i===8-state.demoCandidate);
+    host.querySelector('#demo-phase')?.closest('label').remove();host.querySelector('#demo-mach')?.closest('label').remove();
+    const badge=document.createElement('span');badge.className='action-demo-badge';badge.textContent=`P${state.demoCandidate} · Mach ${candidate.mach.toFixed(2)} · ${t('相对 P₀','from P₀')}`;
+    host.querySelector('#demo-play').before(badge);
+  }
   host.querySelectorAll('[data-demo-mode]').forEach(button=>button.onclick=()=>{pauseDemo();if(button.dataset.demoMode==='single'){active='aircraft';applySectionLayers(active);state.demo=true;state.demoSeconds=0;}else{applySectionLayers(active);state.demo=false;}render();onChange(state);});
   panel.querySelector('.environment-content').scrollTop=rulesScroll;panel.querySelector('.environment-control-region').scrollTop=toolsScroll;
   const demoToggle=host.querySelector('#demo-enabled');if(demoToggle)demoToggle.onchange=()=>{pauseDemo();state.demo=demoToggle.checked;state.demoSeconds=0;render();onChange(state);};

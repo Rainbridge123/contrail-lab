@@ -1,7 +1,7 @@
 import { referenceFlight } from './reference-flight.js?v=1';
 import { createPlaybackControls } from './playback-controls.js?v=initiallevels1';
-import { createSetupControls } from './setup-controls.js?v=pathlayer1';
-import { createViewer } from "./viewer.js?v=pathlayer1";
+import { createSetupControls } from './setup-controls.js?v=actionplay1';
+import { createViewer } from "./viewer.js?v=actionplay1";
 import { createAircraftPreview } from "./aircraft-model.js?v=pptaircraft1";
 import { applyLanguage, setLanguage, t as translate } from "./i18n.js?v=defaults1";
 
@@ -515,7 +515,18 @@ function start(data) {
       }
     } else if(view === "setup") {
       const options=setupUI.state;let focus=byAircraft.get(options.id);
-      if(options.demo){const key=[focus.id,options.demoPhase,options.demoMach].join(':');if(key!==demoFlightKey){demoFlightKey=key;demoFlight=referenceFlight(focus,options.demoPhase,options.demoMach);}focus=demoFlight;options.demoDuration=focus.duration;}
+      if(options.demo){
+        const key=[focus.id,options.demoPhase,options.demoMach,options.demoCandidate].join(':');
+        if(key!==demoFlightKey){
+          demoFlightKey=key;
+          if(options.demoCandidate!==null){
+            const candidate=focus.candidates.find(c=>c.i===8-options.demoCandidate&&c.valid!==false)??focus.plans.B0;
+            const start=candidate.points[0][0];
+            demoFlight={...focus,plans:{B0:{...candidate,points:candidate.points.map(([time,s,h])=>[time-start,s,h]),hitIntervals:candidate.hitIntervals.map(span=>({...span,start:span.start-start,end:span.end-start}))}},duration:candidate.points.at(-1)[0]-start,speed:height=>candidate.mach*Math.sqrt(1.4*287.05287*(288.15-.0065*Math.min(height*.3048,11000)))/.514444};
+          }else demoFlight=referenceFlight(focus,options.demoPhase,options.demoMach);
+        }
+        focus=demoFlight;options.demoDuration=focus.duration;
+      }
       viewer.setSetup(options.demo?{...options,time:false,referenceProfiles:false,candidates:options.referenceProfiles,candidateLevels:[0],altitude:0}:options, focus);
       const demoFrames=options.aircraft?aircraft.flatMap((a,index)=>{
         let distance, height;
@@ -587,7 +598,7 @@ function start(data) {
     if(filter !== "all" && byAircraft.get(next).plans[mode].change !== filter){filter="all";syncPlanControls();}
     dom.select.value = next;
     if (view === "compare") { setPlaying(false); t=playbackStart(); rebuildComparison(); }
-    else if(view === "setup") {setPlaying(false);setupUI.render();}
+    else if(view === "setup") {setPlaying(false);setupUI.pauseDemo();setupUI.state.demoSeconds=0;setupUI.render();}
     render();
   }
 

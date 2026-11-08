@@ -37,13 +37,13 @@ export function createSetupLayer(data, {position,line,label}) {
  let key='';
  function clear(){candidates.traverse(o=>{if(!o.isSprite)o.geometry?.dispose();o.material?.map?.dispose();o.material?.dispose();});candidates.clear();}
  return {object,configure(options,flight){levels.visible=options.aircraft;levels.children.forEach(layer=>{layer.visible=options.levels.includes(layer.userData.altitude);});walls.visible=options.space&&options.routePlanes;walls.children.forEach(w=>w.visible=options.routes.includes(w.userData.heading));profiles.visible=options.referenceProfiles!==false&&options.aircraft;entries.visible=options.time;candidates.visible=options.candidates;
-  const next=flight.id+':'+options.altitude+':'+options.candidateLevels.join(',')+':'+(options.demo?options.demoPhase+options.demoMach:'');
+  const next=flight.id+':'+options.altitude+':'+options.candidateLevels.join(',')+':'+(options.demo?options.demoPhase+options.demoMach+':'+options.demoCandidate:'');
   if(next===key)return;key=next;clear();
   const p=flight.plans.B0;
   for(const dh of options.candidateLevels){
    const pts=p.points.map(([,s,h])=>position(flight.x+flight.dx*s/500,flight.y+flight.dy*s/500,h+dh));
    const c=({'0':'#2864a5','-2000':'#168478','-4000':'#8063ad'})[dh];const curve=ribbon(pts,pts.at(-1).clone().sub(pts[0]),c,dh===options.altitude?.20:.07);curve.add(stroke(pts,c));candidates.add(curve);
-   const name=label(options.demo?(p.points[0][2]/1000)+'k → 35k ft':'Δh '+dh+' ft',c,76);name.position.copy(pts[Math.floor(pts.length*.76)]);name.position.y+=9;candidates.add(name);
+   const name=label(options.demo?(p.points[0][2]/1000)+'k → '+(p.points.at(-1)[2]/1000)+'k ft':'Δh '+dh+' ft',c,76);name.position.copy(pts[Math.floor(pts.length*.76)]);name.position.y+=9;candidates.add(name);
   }
  },dispose(){clear();object.traverse(o=>{if(!o.isSprite)o.geometry?.dispose();o.material?.map?.dispose();o.material?.dispose();});object.removeFromParent();}};
 }
