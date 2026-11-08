@@ -241,3 +241,5 @@ body[data-view="compare"] .scene-context { display:none; }
 #setup-layer-controls input,.playback-layers input,#demo-progress,.demo-scrubber #demo-progress,#time-range { accent-color:#EF7C00; }
 #environment-layer-box>header,#setup-parameters header>span,.stage>.scene-stats .section-label { color:#003D7C; }
 .camera button[aria-pressed="true"] { color:#003D7C; border-color:#9fb9d4; background:#e8f0f8; }
+
+#aircraft-scope {background:#164f89;color:#fff;border:1px solid #7295b9;padding:5px 8px;border-radius:3px;font-size:12px;max-width:145px;}

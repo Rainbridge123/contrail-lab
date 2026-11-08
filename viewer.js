@@ -2,7 +2,7 @@ import { createSetupLayer } from './setup-layer.js?v=demoair3';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { createAircraftParts, aircraftMaterial } from './aircraft-model.js?v=pptaircraft1';
-import { createComparisonLayer } from './comparison-layer.js?v=clearpaths1';
+import { createComparisonLayer } from './comparison-layer.js?v=selection2';
 
 const FLOOR_FT = 26000;
 const CEILING_FT = 42000;
@@ -255,7 +255,7 @@ export function createViewer(container, data, onSelect) {
   let playbackLayer=null, playbackOptions=null, playbackKey='';
   const playbackPaths=new THREE.Group();scene.add(playbackPaths);
   function clearPlaybackPaths(){playbackPaths.children.forEach(o=>{o.geometry?.dispose();o.material?.dispose();});playbackPaths.clear();}
-  function setPlaybackDisplay(options,flight,aircraft,mode,filter,view){
+  function setPlaybackDisplay(options,flight,aircraft,mode,filter,view,scope){
     playbackOptions=options;
     if(!options){if(playbackLayer)playbackLayer.object.visible=false;playbackPaths.visible=false;return;}
     if(!playbackLayer){playbackLayer=createSetupLayer(data,{position,line,label});scene.add(playbackLayer.object);}
@@ -264,7 +264,7 @@ export function createViewer(container, data, onSelect) {
     comparison?.setHotspotsVisible(options.hotspots);
     comparison?.setPathsVisible(options.paths!=='none');
     playbackPaths.visible=view==='fleet'&&options.paths!=='none';
-    const key=[view,mode,filter,flight.id,options.paths].join(':');
+    const key=[view,mode,filter,scope,flight.id,options.paths].join(':');
     if(key!==playbackKey){playbackKey=key;clearPlaybackPaths();
       if(view==='fleet'&&options.paths!=='none')for(const a of aircraft){
         const plan=a.plans[mode];if(options.paths==='selected'&&a.id!==flight.id)continue;if(filter!=='all'&&plan.change!==filter)continue;

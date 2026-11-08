@@ -1,7 +1,7 @@
 import { referenceFlight } from './reference-flight.js?v=1';
 import { createPlaybackControls } from './playback-controls.js?v=initiallevels1';
 import { createSetupControls } from './setup-controls.js?v=sectionpresets1';
-import { createViewer } from "./viewer.js?v=clearpaths1";
+import { createViewer } from "./viewer.js?v=selection2";
 import { createAircraftPreview } from "./aircraft-model.js?v=pptaircraft1";
 import { applyLanguage, setLanguage, t as translate } from "./i18n.js?v=nestedlayers1";
 
@@ -162,6 +162,46 @@ function start(data) {
   sharedSelect.replaceChildren(...aircraft.map(a=>{const o=document.createElement('option');o.value=a.id;o.textContent='#'+a.id;return o;}));
   sharedSelect.value=selectedId;
   sharedSelect.addEventListener('change',()=>{selectAircraft(sharedSelect.value);setInspectorOpen(false);});
+  let aircraftScope = 'changed', chooserKey = '';
+  const scopeSelect = document.createElement('select'); scopeSelect.id = 'aircraft-scope';
+  sharedLabel.before(scopeSelect);
+  function scopedAircraft() {
+    if (view === 'setup' || aircraftScope === 'all') return aircraft;
+    const keys = view === 'compare' ? comparisonKeys() : [mode];
+    return aircraft.filter(a => keys.some(key => {
+      const change = a.plans[key]?.change;
+      return aircraftScope === 'altitude' ? ['altitude','both'].includes(change)
+        : aircraftScope === 'speed' ? change === 'speed' : change && change !== 'none';
+    }));
+  }
+  function syncAircraftChooser() {
+    const en = document.documentElement.lang.startsWith('en');
+    scopeSelect.hidden = view === 'setup';
+    const key = [view, mode, comparisonMethod, aircraftScope, en].join(':');
+    const listed = scopedAircraft();
+    if (key !== chooserKey) {
+      chooserKey = key;
+      scopeSelect.setAttribute('aria-label',en?'Aircraft filter relative to P₀':'按相对 P₀ 的变化筛选飞机');
+      scopeSelect.replaceChildren(...[['changed',en?'Changed':'有调整'],['altitude',en?'Altitude changed':'高度有变化'],['speed',en?'Speed only':'仅速度变化'],['all',en?'All aircraft':'全部飞机']].map(([value,text])=>{
+        const o=document.createElement('option');o.value=value;o.textContent=text;return o;
+      })); scopeSelect.value=aircraftScope;
+      sharedSelect.replaceChildren(...listed.map(a=>{
+        const o=document.createElement('option');o.value=a.id;
+        const changes=(view==='compare'?comparisonKeys():[mode]).map(k=>a.plans[k]?.change);
+        const altitude=changes.some(c=>['altitude','both'].includes(c));
+        o.textContent='#'+a.id+(view==='setup'?'':altitude?(en?' · altitude':' · 高度'):changes.includes('speed')?(en?' · speed':' · 速度'):(en?' · unchanged':' · 未改'));return o;
+      }));
+      if (!listed.length) {const o=document.createElement('option');o.textContent=en?'No matching aircraft':'无符合条件飞机';sharedSelect.append(o);}
+    }
+    sharedSelect.disabled=!listed.length; compareAction.disabled=view!=='compare'&&!listed.length;
+    if (listed.length && !listed.some(a=>a.id===selectedId)) {
+      selectedId=listed[0].id; setupUI.state.id=selectedId;dom.select.value=selectedId;
+      if(view==='compare'){setPlaying(false);t=playbackStart();rebuildComparison();}
+    }
+    sharedSelect.value=listed.length?String(selectedId):sharedSelect.options[0].value;
+    return listed;
+  }
+  scopeSelect.onchange=()=>{aircraftScope=scopeSelect.value;filter='all';setInspectorOpen(false);syncPlanControls();render();};
   const previewColors = { none: 0x526a80, altitude: 0x2563b8, speed: 0x7c3ab1, both: 0x08745d };
   function syncScaleControls() {
     dom.trueScale.setAttribute("aria-pressed", trueScale);
@@ -433,10 +473,12 @@ function start(data) {
   }
 
   function render() {
+    const visibleAircraft=syncAircraftChooser();
+    const visibleIds=new Set(visibleAircraft.map(a=>a.id));
     const englishUI=document.documentElement.lang.startsWith('en');
     compareAction.textContent=view==='compare'?(englishUI?'← Back to fleet':'← 返回机队'):(englishUI?'Compare aircraft #'+selectedId:'对照飞机 #'+selectedId);
     inspectorCompare.textContent=englishUI?'Compare plans for #'+selectedId:'查看 #'+selectedId+' 的方案对照';
-    viewer.setPlaybackDisplay(view==='setup'?null:playbackUI.settings[view],byAircraft.get(selectedId),aircraft,mode,filter,view);
+    viewer.setPlaybackDisplay(view==='setup'?null:playbackUI.settings[view],byAircraft.get(selectedId),visibleAircraft,mode,filter,view,aircraftScope);
     const frames = [];
     let activeFlight;
     let exposedNow = 0;
@@ -492,7 +534,7 @@ function start(data) {
       setCell('setup-airborne',options.time ? demoFrames.length+' / 96' : '—');
       setCell('setup-selected-mach',(focus.plans.B0.mach+options.mach).toFixed(2));
       setCell('setup-selected-altitude',(focus.plans.B0.points[0][2]+options.altitude).toLocaleString()+' → '+(focus.plans.B0.points.at(-1)[2]+options.altitude).toLocaleString());
-    } else viewer.update(filter === "all" ? frames : frames.filter((frame) => frame.change === filter), selectedId);
+    } else viewer.update(frames.filter(frame=>visibleIds.has(frame.id)&&(filter === "all" || frame.change === filter)), selectedId);
 
     const flight = byAircraft.get(selectedId);
     const plan = flight.plans[mode];
@@ -517,7 +559,7 @@ function start(data) {
     dom.outcome.textContent = translate(plan.hit ? "planExposed" : "planClear");
     dom.outcomeDot.dataset.hit = plan.hit;
     dom.outcome.parentElement.dataset.hit = plan.hit;
-    dom.airborne.textContent = frames.length + " / " + aircraft.length;
+    dom.airborne.textContent = frames.filter(frame=>visibleIds.has(frame.id)&&(filter === "all" || frame.change === filter)).length + " / " + visibleAircraft.length;
     dom.inHotspots.textContent = translate("exposureCount", { count: exposedNow });
     dom.totalExposed.textContent = exposedInPlan + " / " + aircraft.length;
 

@@ -2,6 +2,17 @@ import * as THREE from 'three';
 
 export function createComparisonLayer(flight, groups, hotspots, helpers) {
   const { position, line, label } = helpers;
+  function compactLabel(text, color) {
+    const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
+    ctx.font = '500 24px sans-serif';
+    canvas.width = Math.ceil(ctx.measureText(text).width) + 20; canvas.height = 40;
+    ctx.font = '500 24px sans-serif'; ctx.fillStyle = color;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, canvas.width / 2, 20);
+    const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({map, transparent:true, depthTest:false, depthWrite:false, toneMapped:false}));
+    sprite.scale.set(canvas.width / canvas.height * 9, 9, 1); sprite.renderOrder = 5;
+    return sprite;
+  }
   const object = new THREE.Group(), guides = new THREE.Group(), labels = new Map(), markers = new Map();
   const direction = new THREE.Vector3(flight.dx, 0, -flight.dy).normalize();
   const at = (s, altitude) => position(flight.x + flight.dx * s / flight.length, flight.y + flight.dy * s / flight.length, altitude);
@@ -47,7 +58,7 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
       stroke.renderOrder = 3; path.add(stroke);
     }
     path.userData.fullTrajectory = true; object.add(path);
-    const name = label(group.label, group.color, Math.max(48, group.label.length * 6));
+    const name = compactLabel(group.label, group.color);
     name.visible = false;
     object.add(name); labels.set(group.id, name);
     const marker = new THREE.Mesh(new THREE.SphereGeometry(1.65, 12, 8), new THREE.MeshBasicMaterial({color: group.color, toneMapped: false, depthTest: false}));
@@ -64,7 +75,7 @@ export function createComparisonLayer(flight, groups, hotspots, helpers) {
   }
   for (const {group, names} of spatialLabels.values()) {
     const text = names.join(' / ');
-    const endLabel = label(text, group.color, Math.max(55, text.length * 6));
+    const endLabel = compactLabel(text, group.color);
     const [, s, h] = group.plan.points.at(-1);
     endLabel.position.copy(at(s - 35, h)); endLabel.position.y += 7;
     endLabel.userData.fullTrajectory = true; object.add(endLabel);
