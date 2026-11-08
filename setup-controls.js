@@ -84,6 +84,9 @@ export function createSetupControls(aircraft,onChange){
     info.onclick=()=>showPopup(info,t('生成规则','Generation rules'),rulesHTML,true);
     function candidateDetails(button,pin){
       const id=Number(button.dataset.candidate),row=id%3,dm=-Math.floor(id/3)*.03,dh=-row*2000;
+      if(id===0){
+        showPopup(button,t('P₀ · 起始方案如何生成','P₀ · How the start plan is chosen'),`<ol class="p0-steps"><li>${t('以该飞机的参考 Mach 和高度剖面为起点。','Start from the aircraft’s reference Mach and altitude profile.')}</li><li>${t('搜索 7 档 Mach × 7 档高度偏移，保留物理可行组合。','Search 7 Mach settings × 7 altitude offsets; retain physically feasible combinations.')}</li><li>${t('选择燃油与时间加权成本最低的方案。','Choose the plan with the lowest weighted fuel and time cost.')}</li></ol><div class="p0-objective">min (0.51 × ${t('燃油 kg','fuel kg')}<br>+ 0.75 × ${t('时间 s','time s')})</div><p>${t('横向航路、入场时刻固定。再相对 P₀ 生成矩阵中的 9 种组合。','Lateral route and entry time stay fixed. The 9 matrix combinations are then defined relative to P₀.')}</p>`,pin);return;
+      }
       showPopup(button,`P${id}`,`<dl><dt>${t('高度偏移','Altitude offset')}</dt><dd>${dh.toLocaleString()} ft</dd><dt>${t('Mach 偏移','Mach offset')}</dt><dd>${dm.toFixed(2)}</dd></dl><p>${t('相对 P₀ · 横向航路与入场时刻固定','Relative to P₀ · Lateral route and entry time fixed')}</p>`,pin);
     }
     rules.querySelectorAll('[data-candidate]').forEach(button=>{

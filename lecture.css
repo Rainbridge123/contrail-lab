@@ -291,3 +291,5 @@ body[data-view="setup"] #environment-sidebar[data-section="candidates"] #setup-p
 #environment-layer-box>header {flex-shrink:0;}
 @media(min-width:801px){body[data-view="setup"] .stage:has(#environment-sidebar[data-section="candidates"]) {min-height:600px;}}
 @media(max-width:800px){body[data-view="setup"] #environment-sidebar[data-section="candidates"] {position:relative;inset:auto;}#environment-sidebar[data-section="candidates"] #environment-layer-box {flex:none;height:280px;}}
+
+.p0-steps {margin:0;padding-left:19px;}.p0-steps li+li {margin-top:8px;}.p0-objective {margin-top:12px;padding:9px 12px;background:#eaf1f8;border-left:3px solid #EF7C00;color:#003D7C;font-variant-numeric:tabular-nums;}
