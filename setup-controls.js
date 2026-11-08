@@ -1,5 +1,5 @@
 export function createSetupControls(aircraft,onChange){
- const state={space:true,time:true,aircraft:true,hotspots:true,candidates:false,altitude:0,mach:0,id:53,levels:[33000,35000,37000],candidateLevels:[0,-2000,-4000],routePlanes:false,routes:[0,45,90,135],demo:false,demoPhase:"climb",demoMach:.78,demoSeconds:0,demoPlaying:false,demoDuration:5000,demoRate:60};
+ const state={space:true,time:true,aircraft:true,hotspots:true,candidates:false,altitude:0,mach:0,id:53,levels:[33000,35000,37000],candidateLevels:[0,-2000,-4000],referenceProfiles:true,routePlanes:false,routes:[0,45,90,135],demo:false,demoPhase:"climb",demoMach:.78,demoSeconds:0,demoPlaying:false,demoDuration:5000,demoRate:60};
  if(!aircraft.some(a=>a.id===state.id))state.id=aircraft[0].id;
  const host=document.createElement('section');host.id='setup-controls';host.hidden=true;document.querySelector('#workbench-context').append(host);
  const sidebar=document.createElement('div');sidebar.id='environment-sidebar';document.querySelector('.stage').append(sidebar);
@@ -25,10 +25,10 @@ export function createSetupControls(aircraft,onChange){
  let matrixChoice=0;
  let active='space',demoRaf=0,demoLast=null, demoOpen=false;
  function applySectionLayers(section){
-  Object.assign(state,{space:true,aircraft:false,time:false,hotspots:false,candidates:false,routePlanes:false,routes:[0,45,90,135],levels:[33000,35000,37000],demo:false});
+  Object.assign(state,{space:true,aircraft:false,time:false,hotspots:false,candidates:false,referenceProfiles:true,routePlanes:false,routes:[0,45,90,135],levels:[33000,35000,37000],demo:false});
   if(section==='space')state.routePlanes=true;
   if(section==='aircraft')state.aircraft=true;
-  if(section==='time')Object.assign(state,{aircraft:true,time:true});
+  if(section==='time')Object.assign(state,{aircraft:true,time:true,referenceProfiles:false});
   if(section==='hotspots')Object.assign(state,{aircraft:true,hotspots:true});
   if(section==='candidates')Object.assign(state,{aircraft:true,demo:true,demoSeconds:0});
  }
@@ -98,7 +98,7 @@ export function createSetupControls(aircraft,onChange){
     });
 
   }
-  const children={space:`<table><tbody>${[layerRows.space[0],...(state.routePlanes?[layerRows.space[1]]:[])].join('')}</tbody></table>`,aircraft:checks('levels',[33000,35000,37000],v=>v.toLocaleString()+' ft'),candidates:`<table><tbody>${layerRows.candidates.join('')}</tbody></table>`};
+  const children={space:`<table><tbody>${[layerRows.space[0],...(state.routePlanes?[layerRows.space[1]]:[])].join('')}</tbody></table>`,aircraft:`<label class="profile-path-toggle"><input id="setup-reference-paths" type="checkbox" ${state.referenceProfiles?'checked':''}>${state.demo?t('完整参考轨迹','Full reference trajectory'):t('参考轨迹带','Reference trajectory ribbons')}</label><div class="layer-child-caption">${t('初始高度面','Initial altitude planes')}</div>${checks('levels',[33000,35000,37000],v=>v.toLocaleString()+' ft')}`,candidates:`<table><tbody>${layerRows.candidates.join('')}</tbody></table>`};
   layerPanel.innerHTML=Object.entries(layerNames).map(([k,v])=>`<section class="layer-group"><label class="layer-parent"><input type="checkbox" data-layer="${k}" ${state[k]?'checked':''}>${v}</label>${children[k]&&state[k]?`<div class="layer-children">${children[k]}</div>`:''}</section>`).join('');
   layerPanel.scrollTop=layerScroll;
   panel.querySelector('.environment-control-region').replaceChildren();
@@ -112,6 +112,7 @@ export function createSetupControls(aircraft,onChange){
   const reset=host.querySelector('#demo-reset');if(reset)reset.onclick=()=>{pauseDemo();state.demoSeconds=0;render();onChange(state);};
   const progress=host.querySelector('#demo-progress');if(progress)progress.oninput=()=>{pauseDemo();state.demoSeconds=Number(progress.value);host.querySelector('#demo-play').textContent=t('播放','Play');onChange(state);};
   layerPanel.querySelectorAll('[data-option]').forEach(el=>el.onchange=()=>{const key=el.dataset.option,value=Number(el.value);state[key]=el.checked?[...state[key],value]:state[key].filter(v=>v!==value);onChange(state);});
+  const referencePaths=layerPanel.querySelector('#setup-reference-paths');if(referencePaths)referencePaths.onchange=()=>{state.referenceProfiles=referencePaths.checked;onChange(state);};
   const wall=layerPanel.querySelector('#setup-route-planes');if(wall)wall.onchange=()=>{state.routePlanes=wall.checked;render();onChange(state);};
   host.querySelectorAll('[data-section]').forEach(el=>el.onclick=()=>{pauseDemo();panel.querySelector('.environment-content').scrollTop=0;panel.querySelector('.environment-control-region').scrollTop=0;active=el.dataset.section;applySectionLayers(active);render();onChange(state);});
   layerPanel.querySelectorAll('[data-layer]').forEach(el=>el.onchange=()=>{state[el.dataset.layer]=el.checked;if((el.dataset.layer==='candidates'&&el.checked)||(el.dataset.layer==='aircraft'&&!el.checked)){pauseDemo();state.demo=false;}if(el.dataset.layer==='time'&&el.checked)state.aircraft=true;if(el.dataset.layer==='aircraft'&&!el.checked)state.time=false;render();onChange(state);});

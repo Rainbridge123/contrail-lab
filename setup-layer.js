@@ -36,7 +36,7 @@ export function createSetupLayer(data, {position,line,label}) {
  }
  let key='';
  function clear(){candidates.traverse(o=>{if(!o.isSprite)o.geometry?.dispose();o.material?.map?.dispose();o.material?.dispose();});candidates.clear();}
- return {object,configure(options,flight){levels.visible=options.aircraft;levels.children.forEach(layer=>{layer.visible=options.levels.includes(layer.userData.altitude);});walls.visible=options.space&&options.routePlanes;walls.children.forEach(w=>w.visible=options.routes.includes(w.userData.heading));profiles.visible=options.referenceProfiles!==false&&options.aircraft&&!options.time;entries.visible=options.time;candidates.visible=options.candidates;
+ return {object,configure(options,flight){levels.visible=options.aircraft;levels.children.forEach(layer=>{layer.visible=options.levels.includes(layer.userData.altitude);});walls.visible=options.space&&options.routePlanes;walls.children.forEach(w=>w.visible=options.routes.includes(w.userData.heading));profiles.visible=options.referenceProfiles!==false&&options.aircraft;entries.visible=options.time;candidates.visible=options.candidates;
   const next=flight.id+':'+options.altitude+':'+options.candidateLevels.join(',')+':'+(options.demo?options.demoPhase+options.demoMach:'');
   if(next===key)return;key=next;clear();
   const p=flight.plans.B0;

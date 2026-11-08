@@ -1,7 +1,7 @@
 import { referenceFlight } from './reference-flight.js?v=1';
 import { createPlaybackControls } from './playback-controls.js?v=initiallevels1';
-import { createSetupControls } from './setup-controls.js?v=p0help1';
-import { createViewer } from "./viewer.js?v=picker3";
+import { createSetupControls } from './setup-controls.js?v=pathlayer1';
+import { createViewer } from "./viewer.js?v=pathlayer1";
 import { createAircraftPreview } from "./aircraft-model.js?v=pptaircraft1";
 import { applyLanguage, setLanguage, t as translate } from "./i18n.js?v=defaults1";
 
@@ -516,7 +516,7 @@ function start(data) {
     } else if(view === "setup") {
       const options=setupUI.state;let focus=byAircraft.get(options.id);
       if(options.demo){const key=[focus.id,options.demoPhase,options.demoMach].join(':');if(key!==demoFlightKey){demoFlightKey=key;demoFlight=referenceFlight(focus,options.demoPhase,options.demoMach);}focus=demoFlight;options.demoDuration=focus.duration;}
-      viewer.setSetup(options.demo?{...options,time:false,referenceProfiles:false,candidates:true,candidateLevels:[0],altitude:0}:options, focus);
+      viewer.setSetup(options.demo?{...options,time:false,referenceProfiles:false,candidates:options.referenceProfiles,candidateLevels:[0],altitude:0}:options, focus);
       const demoFrames=options.aircraft?aircraft.flatMap((a,index)=>{
         let distance, height;
         if(options.time){const point=samplePlan(referencePlans.get(a.id),t).point;if(!point)return [];[distance,height]=point;}
