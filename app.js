@@ -1,6 +1,6 @@
 import { referenceFlight } from './reference-flight.js?v=1';
 import { createPlaybackControls } from './playback-controls.js?v=fleetfilters1';
-import { createSetupControls } from './setup-controls.js?v=actionplay1';
+import { createSetupControls } from './setup-controls.js?v=setupfooter1';
 import { createViewer } from "./viewer.js?v=batch3d1";
 import { createAircraftPreview } from "./aircraft-model.js?v=pptaircraft1";
 import { applyLanguage, setLanguage, t as translate } from "./i18n.js?v=selectionflow1";
