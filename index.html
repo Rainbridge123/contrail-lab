@@ -7,10 +7,11 @@
   <meta name="description" content="在三维空域中回放 CS5446 v5 合成场景，查看 96 架飞机的航路与热点避让。" data-i18n-content="description">
   <title>Contrail Lab · v5 空域回放</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=wide1">
-  <link rel="stylesheet" href="./lecture.css?v=actionplay1">
+  <link rel="stylesheet" href="./styles.css?v=locateicon1">
+  <link rel="stylesheet" href="./lecture.css?v=selectionflow1">
+  <link rel="stylesheet" href="./cohort.css?v=selectionflow1">
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
-  <script type="module" src="./app.js?v=speed1"></script>
+  <script type="module" src="./app.js?v=selectionflow1"></script>
 
 </head>
 <body>
@@ -99,13 +100,6 @@
               <summary data-i18n="displaySettings">显示设置</summary>
               <div class="settings-body">
                 <div class="display-tools"><label for="aircraft-size" data-i18n="aircraftSize">飞机大小</label><input id="aircraft-size" type="range" min="50" max="150" step="5" value="100"><output id="aircraft-size-value" for="aircraft-size" class="mono">100%</output></div>
-                <div class="change-filters" role="group" aria-label="按相对 P₀ 的调整筛选飞机" data-i18n-aria-label="filtersGroup">
-              <span class="change-caption" data-i18n="relativeToP0">相对 P₀</span>
-              <button type="button" data-change-filter="all" aria-pressed="true"><span data-i18n="filterAll">全部</span> <span class="change-count mono">—</span></button>
-              <button type="button" data-change-filter="altitude" aria-pressed="false"><span class="change-dot"></span><span data-i18n="filterAltitude">仅高度</span> <span class="change-count mono">—</span></button>
-              <button type="button" data-change-filter="speed" aria-pressed="false"><span class="change-dot"></span><span data-i18n="filterSpeed">仅 Mach</span> <span class="change-count mono">—</span></button>
-              <button type="button" data-change-filter="both" aria-pressed="false" title="高度和 Mach 都有变化" data-i18n-title="filterBothTitle"><span class="change-dot"></span><span data-i18n="filterBoth">两项</span> <span class="change-count mono">—</span></button>
-            </div>
                 <p data-i18n="orbitHint">拖动旋转 · 右键平移 · 滚动缩放</p>
               </div>
             </details>
@@ -122,9 +116,8 @@
             <li><span class="key plane-key"></span><span data-i18n="legendUnchanged">未改</span></li>
             <li><span class="key altitude-key"></span><span data-i18n="filterAltitude">仅高度</span></li>
             <li><span class="key speed-key"></span><span data-i18n="filterSpeed">仅 Mach</span></li>
-            <li><span class="key both-key"></span><span data-i18n="filterBoth">两项</span></li>
+            <li><span class="key both-key"></span><span data-i18n="filterBoth">高度和 Mach 都变</span></li>
             <li><span class="key hotspot-key"></span><span data-i18n="legendHotspot">热点</span></li>
-            <li id="filter-summary" class="filter-summary" hidden></li>
           </ul>
           <ul id="comparison-legend" class="legend comparison-legend" aria-label="方案轨迹图例" data-i18n-aria-label="comparisonLegend" hidden></ul>
           <p id="scale-note" class="scale-note" data-i18n="displayScaleNote">飞机示意大小 · 高度轴 ×54.7</p>
@@ -134,12 +127,27 @@
         <section class="flight-section">
           <div class="section-head">
             <span class="section-label" data-i18n="aircraftDetails">飞机详情</span>
-            <label for="aircraft-select" class="sr-only" data-i18n="selectAircraft">选择飞机</label>
+            <label for="aircraft-select" class="sr-only" data-i18n="aircraftFocus">聚焦飞机</label>
             <select id="aircraft-select" disabled><option data-i18n="loadingAircraft">正在载入</option></select>
           </div>
           <div class="flight-identity">
-            <div><h2 id="flight-title">飞机 #53</h2><p id="flight-meta" class="subtle">A320 · 045° 航路</p></div>
+            <div>
+              <div class="flight-heading">
+                <h2 id="flight-title">飞机 #53</h2>
+                <button id="focus-aircraft" class="flight-locate" type="button" aria-label="定位飞机" title="定位飞机" data-i18n-aria-label="focusAircraft" data-i18n-title="focusAircraft" disabled>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="7"/>
+                    <path d="M12 2v5m0 10v5M2 12h5m10 0h5"/>
+                    <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>
+                  </svg>
+                </button>
+              </div>
+              <p id="flight-meta" class="subtle">A320 · 045° 航路</p>
+            </div>
             <span id="flight-status" class="flight-status">—</span>
+          </div>
+          <div class="inspector-action">
+            <button id="inspector-compare" class="toolbar-button" type="button"></button>
           </div>
           <div class="aircraft-preview-card">
             <div class="preview-caption"><span data-i18n="aircraftModel">A320 · 三维外形</span><button id="reset-aircraft-preview" type="button" data-i18n="resetModel">复位</button></div>
@@ -159,8 +167,6 @@
           </div>
           <div class="route-outcome"><span id="outcome-dot" class="outcome-dot"></span><span id="outcome">全程热点暴露</span></div>
         </section>
-        <div class="inspector-action"><button id="focus-aircraft" class="toolbar-button" type="button" data-i18n="focusAircraft" disabled>定位飞机</button></div>
-
       </aside>
       <section class="timeline" aria-label="仿真时间轴" data-i18n-aria-label="timelineLabel">
         <div class="playback"><button type="button" id="play" class="play-button" aria-label="播放" data-i18n-aria-label="playAction" disabled>
@@ -179,6 +185,14 @@
         <thead><tr><th scope="col" data-i18n="comparisonPlan">方案</th><th scope="col" data-i18n="comparisonAltitude">高度调整 (ft)</th><th scope="col" data-i18n="comparisonMach">Mach / 调整</th><th scope="col" data-i18n="comparisonCurrent">当前高度 (ft)</th><th scope="col" data-i18n="comparisonFuel">航段燃油 (kg)</th><th scope="col" data-i18n="comparisonTime">航段用时</th><th scope="col" data-i18n="comparisonExposure">全程热点暴露</th><th scope="col" data-i18n="comparisonState">当前状态</th></tr></thead>
         <tbody id="comparison-rows"></tbody>
       </table></div>
+    </section>
+    <section id="cohort-results" class="cohort-results" aria-labelledby="cohort-title" hidden>
+      <div class="cohort-heading">
+        <h2 id="cohort-title" tabindex="-1" data-i18n="cohortTitle">同批飞机方案对照</h2>
+        <p id="cohort-source"></p>
+        <p data-i18n="cohortDescription">各方案的高度和 Mach 调整均相对 P₀。点击飞机编号查看单机 3D 对照。</p>
+      </div>
+      <div id="cohort-table"></div>
     </section>
     <footer class="page-foot">
       <span data-i18n="singleScene">单场景实验结果</span>

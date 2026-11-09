@@ -45,12 +45,12 @@ function circlePoints(radius, y = 0) {
   });
 }
 
-function label(text, color, width = 56) {
+function label(text, color, width = 56, fontSize = 38) {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 64;
   const ctx = canvas.getContext('2d');
-  ctx.font = '600 38px ui-monospace, monospace';
+  ctx.font = `600 ${fontSize}px ui-monospace, monospace`;
   ctx.fillStyle = color;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -226,6 +226,7 @@ export function createViewer(container, data, onSelect) {
   let selectedLabel = null;
   let labelKey = null;
   scene.add(selection);
+  const manualLabels = new Map();
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'low-power' });
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -252,10 +253,10 @@ export function createViewer(container, data, onSelect) {
   const raycaster = new THREE.Raycaster();
   const screen = new THREE.Vector2();
 
-  let playbackLayer=null, playbackOptions=null, playbackKey='';
+  let playbackLayer=null, playbackOptions=null, playbackKey='', playbackAircraft=null;
   const playbackPaths=new THREE.Group();scene.add(playbackPaths);
   function clearPlaybackPaths(){playbackPaths.children.forEach(o=>{o.geometry?.dispose();o.material?.dispose();});playbackPaths.clear();}
-  function setPlaybackDisplay(options,flight,aircraft,mode,filter,view,scope){
+  function setPlaybackDisplay(options,flight,aircraft,mode,view,trainingRun){
     playbackOptions=options;
     if(!options){if(playbackLayer)playbackLayer.object.visible=false;playbackPaths.visible=false;return;}
     if(!playbackLayer){playbackLayer=createSetupLayer(data,{position,line,label});scene.add(playbackLayer.object);}
@@ -264,10 +265,12 @@ export function createViewer(container, data, onSelect) {
     comparison?.setHotspotsVisible(options.hotspots);
     comparison?.setPathsVisible(options.paths!=='none');
     playbackPaths.visible=view==='fleet'&&options.paths!=='none';
-    const key=[view,mode,filter,scope,flight.id,options.paths].join(':');
-    if(key!==playbackKey){playbackKey=key;clearPlaybackPaths();
+    const key=[view,mode,trainingRun,options.paths,options.paths==='selected'?flight.id:''].join(':');
+    if(key!==playbackKey || aircraft!==playbackAircraft){
+      playbackKey=key;playbackAircraft=aircraft;clearPlaybackPaths();
       if(view==='fleet'&&options.paths!=='none')for(const a of aircraft){
-        const plan=a.plans[mode];if(options.paths==='selected'&&a.id!==flight.id)continue;if(filter!=='all'&&plan.change!==filter)continue;
+        if(options.paths==='selected'&&a.id!==flight.id)continue;
+        const plan=a.plans[mode];
         const points=plan.points.map(([,s,h])=>position(a.x+a.dx*s/a.length,a.y+a.dy*s/a.length,h));
         playbackPaths.add(line(points,CHANGE_COLORS.get(plan.change)??AIRCRAFT_COLOR,options.paths==='selected'?.9:.24));
       }
@@ -387,8 +390,10 @@ export function createViewer(container, data, onSelect) {
     aircraftMeshes.forEach(mesh => { mesh.count = active.length; });
     let exposureCount = 0;
     selection.visible = false;
+    for (const sprite of manualLabels.values()) sprite.visible = false;
     for (const [i, frame] of active.entries()) {
-      const selected = String(frame.id) === selectedKey;
+      const id = String(frame.id);
+      const selected = id === selectedKey;
       marker.position.copy(frame.point);
       marker.rotation.y = -THREE.MathUtils.degToRad(frame.heading);
       // Horizontal scene coordinates are NM; the model geometry is in metres.
@@ -402,14 +407,26 @@ export function createViewer(container, data, onSelect) {
       const changeColor = CHANGE_COLORS.get(frame.change);
       const legacyColor = selected ? SELECTED_COLOR : (frame.exposed ? EXPOSED_COLOR : AIRCRAFT_COLOR);
       const color = frame.muted ? new THREE.Color(0xd5dfe7) : frame.color ? new THREE.Color(frame.color) : changeColor ?? legacyColor;
+      const adjusted = changeColor && frame.change !== 'none';
       aircraftMeshes[2].setColorAt(i, color);
-      aircraftMeshes[0].setColorAt(i, tintColor.copy(color).lerp(WHITE, .92));
-      aircraftMeshes[1].setColorAt(i, tintColor.copy(color).lerp(WHITE, .72));
+      aircraftMeshes[0].setColorAt(i, tintColor.copy(color).lerp(WHITE, adjusted ? .22 : .92));
+      aircraftMeshes[1].setColorAt(i, tintColor.copy(color).lerp(WHITE, adjusted ? .38 : .72));
       if (!trueScale && !frame.muted && changeColor && frame.exposed) {
         marker.position.set(frame.point.x + 2.4, frame.point.y + 2.2, frame.point.z + 2.4);
         marker.scale.setScalar(1);
         marker.updateMatrix();
         exposureMarkers.setMatrixAt(exposureCount++, marker.matrix);
+      }
+      if (frame.showId && !trueScale) {
+        let sprite = manualLabels.get(id);
+        if (!sprite) {
+          sprite = label('#' + id, '#0b669f', 64, 54);
+          sprite.center.y = -.5;
+          manualLabels.set(id, sprite);
+          scene.add(sprite);
+        }
+        sprite.position.copy(frame.point);
+        sprite.visible = true;
       }
       if (!selected || trueScale) continue;
       selection.visible = true;
@@ -417,6 +434,7 @@ export function createViewer(container, data, onSelect) {
       halo.position.copy(frame.point);
       halo.position.y += 0.25;
       if (selectedLabel) {
+        selectedLabel.visible = !frame.showId;
         selectedLabel.position.copy(frame.point);
         selectedLabel.position.y += (frame.demo?22:7) * aircraftScale;
       }

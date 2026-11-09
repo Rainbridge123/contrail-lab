@@ -87,19 +87,12 @@ button:focus-visible, select:focus-visible, input:focus-visible, canvas:focus-vi
 .display-tools input { width: 100%; min-width: 0; accent-color: var(--accent); }
 .display-tools label, .display-tools output { flex: none; }
 .display-tools output { min-width: 40px; text-align: right; }
-.change-filters { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 15px; }
-.change-caption { flex-basis: 100%; color: var(--subtle); font-size: 11px; margin-bottom: 5px; }
-.change-filters button { display: flex; gap: 4px; align-items: center; font-size: 11px; border: 1px solid var(--line); border-radius: 3px; padding: 6px; color: var(--subtle); background: transparent; }
-.change-filters button[aria-pressed="true"] { background: var(--selected); border-color: var(--selected-line); color: var(--accent); }
-.change-count { font-variant-numeric: tabular-nums; }
-.change-dot { width: 5px; height: 5px; border-radius: 50%; }
-[data-change-filter="altitude"] .change-dot, .altitude-key { background: var(--altitude-change); }
-[data-change-filter="speed"] .change-dot, .speed-key { background: var(--speed-change); }
-[data-change-filter="both"] .change-dot, .both-key { background: var(--both-change); }
+.altitude-key { background: var(--altitude-change); }
+.speed-key { background: var(--speed-change); }
+.both-key { background: var(--both-change); }
 .stage-bottom { bottom: 12px; flex-wrap: wrap; align-items: end; }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 0; padding: 4px 0; list-style: none; font-size: 10px; color: var(--subtle); background: var(--overlay); }
 .legend li { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-.legend .filter-summary { padding-left: 10px; border-left: 1px solid var(--line); color: var(--accent); }
 .key { width: 6px; height: 6px; display: inline-block; border-radius: 50%; flex: none; }
 .plane-key { background: #526a80; }
 .hotspot-key { width: 8px; height: 8px; background: #efd1ca; border: 1px solid var(--coral); }
@@ -114,6 +107,9 @@ select { background: #fff; color: var(--ink); border: 1px solid var(--line); bor
 #aircraft-select { max-width: 160px; }
 .flight-identity { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 5px; margin-top: 15px; }
 .flight-identity h2 { font-size: 23px; margin: 0; font-weight: 680; }
+.flight-heading { display: flex; align-items: center; gap: 7px; }
+.flight-locate { display: inline-grid; place-items: center; flex: none; width: 28px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 4px; color: var(--accent); background: var(--panel); }
+.flight-locate:hover:not(:disabled) { border-color: var(--selected-line); background: var(--selected); }
 .subtle { color: var(--subtle); font-size: 11px; margin: 5px 0 0; }
 .flight-status { font-size: 10px; color: var(--accent); }
 .flight-status[data-state="exposed"] { color: var(--coral); }
@@ -132,7 +128,7 @@ select { background: #fff; color: var(--ink); border: 1px solid var(--line); bor
 .route-outcome { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--subtle); }
 .outcome-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--clear); flex: none; }
 .outcome-dot[data-hit="true"] { background: var(--coral); }
-.inspector-action { padding: 0 13px 12px; }
+.inspector-action { display: grid; margin: 8px 0 12px; }
 .inspector-action button { border-color: var(--line); width: 100%; }
 .scene-stats { border-top: 1px solid var(--line); }
 .timeline { grid-area: timeline; display: flex; gap: 22px; align-items: center; padding: 13px 0 10px; border-bottom: 1px solid var(--line); }

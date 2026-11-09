@@ -1,11 +1,12 @@
 import { referenceFlight } from './reference-flight.js?v=1';
-import { createPlaybackControls } from './playback-controls.js?v=initiallevels1';
+import { createPlaybackControls } from './playback-controls.js?v=fleetfilters1';
 import { createSetupControls } from './setup-controls.js?v=actionplay1';
-import { createViewer } from "./viewer.js?v=speed1";
+import { createViewer } from "./viewer.js?v=batch3d1";
 import { createAircraftPreview } from "./aircraft-model.js?v=pptaircraft1";
-import { applyLanguage, setLanguage, t as translate } from "./i18n.js?v=defaults1";
+import { applyLanguage, setLanguage, t as translate } from "./i18n.js?v=selectionflow1";
 
-import { interpolate, samplePlan, groupComparisonPlans, comparisonFrame } from "./comparison-data.js?v=speed1";
+import { interpolate, samplePlan, groupComparisonPlans, comparisonFrame, shortPlanName } from "./comparison-data.js?v=speed1";
+import { createAircraftSelection, renderCohortComparison } from "./cohort-comparison.js?v=selectionflow1";
 
 const byId = (id) => document.getElementById(id);
 const dom = {
@@ -27,7 +28,6 @@ const dom = {
   metricFuel: byId("metric-fuel"), metricTime: byId("metric-time"), metricHotspot: byId("metric-hotspot"),
   mappoAvailability: byId("mappo-availability"),
   selectionStatus: byId("selection-status"),
-  filterSummary: byId("filter-summary"),
   compareSelect: byId("compare-aircraft"), compareMethod: byId("compare-method"),
   compareRows: byId("comparison-rows"), compareLegend: byId("comparison-legend"),
 };
@@ -35,7 +35,6 @@ const modeButtons = Array.from(document.querySelectorAll("[data-mode]"));
 const familyButtons = Array.from(document.querySelectorAll("[data-family]"));
 const familyPanels = Array.from(document.querySelectorAll("[data-family-panel]"));
 const cameraButtons = Array.from(document.querySelectorAll("[data-camera]"));
-const filterButtons = Array.from(document.querySelectorAll("[data-change-filter]"));
 const languageButtons = Array.from(document.querySelectorAll("[data-language]"));
 const legacyPlanIndexes = { B0: "p0", B1: "b1", B2: "b2" };
 const legacyPlanLabels = { B0: "planB0", B1: "planB1", B2: "planB2" };
@@ -53,6 +52,10 @@ const percentage = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, ma
 const machFormat = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const phaseKey = { cruise: "phaseCruise", climb: "phaseClimb", descent: "phaseDescent" };
 const changeKey = { none: "changeNone", altitude: "changeAltitude", speed: "changeSpeed", both: "changeBoth" };
+const scopeLabels = {
+  all: "filterAll", changed: "filterChanged", altitude: "changeAltitude",
+  speed: "changeSpeed", both: "filterBoth", none: "changeNone",
+};
 const pad = (value) => String(value).padStart(2, "0");
 const signed = (value, format) => (value > 0 ? "+" : value < 0 ? "−" : "") + format.format(Math.abs(value));
 
@@ -76,14 +79,26 @@ function start(data) {
   sharedLabel.append(sharedText,sharedSelect);toolbar.append(sharedLabel);
   const compareAction=switcher.querySelector('[data-view="compare"]');
   compareAction.removeAttribute('data-view');compareAction.removeAttribute('data-i18n');compareAction.removeAttribute('aria-pressed');compareAction.id='compare-aircraft-action';compareAction.className='compare-aircraft-action';toolbar.append(compareAction);
-  const inspectorCompare=document.createElement('button');inspectorCompare.type='button';inspectorCompare.id='inspector-compare';inspectorCompare.className='compare-aircraft-action';dom.inspector.prepend(inspectorCompare);
-  context.append(document.querySelector('.experiment-panel'),byId('comparison-controls'));
+  const cohortAction = document.createElement('button');
+  cohortAction.type = 'button';
+  cohortAction.id = 'compare-cohort-action';
+  cohortAction.className = 'fleet-table-action';
+  const cohortBack = document.createElement('button');
+  cohortBack.type = 'button';
+  cohortBack.className = 'compare-aircraft-action';
+  toolbar.append(cohortBack);
+  const inspectorCompare = byId('inspector-compare');
+  const experimentPanel = document.querySelector('.experiment-panel');
+  const methodSwitch = experimentPanel.querySelector('.method-switch');
+  context.append(experimentPanel, byId('comparison-controls'));
   const timeline=document.querySelector('.timeline');
   const compareRestart=document.createElement('button');compareRestart.id='compare-restart';compareRestart.className='toolbar-button';compareRestart.type='button';timeline.querySelector('.playback').append(compareRestart);
   toolbar.append(document.querySelector('.scene-context'));
   document.querySelector('.intro').remove();
   const resultArea=document.createElement('div');resultArea.className='workbench-results';
-  workbench.append(resultArea);resultArea.append(document.querySelector('.results'),byId('comparison-results'));
+  const cohortResults = byId('cohort-results');
+  const cohortTable = byId('cohort-table');
+  workbench.append(resultArea);resultArea.append(document.querySelector('.results'),byId('comparison-results'),cohortResults);
 
   const trainingSeeds = [...new Set(Object.values(data.plans ?? {}).filter(p => p.algorithm === 'MAPPO').map(p => p.trainingSeed))].sort((a,b)=>a-b);
   const trainingControl = document.createElement('label');
@@ -168,7 +183,7 @@ function start(data) {
       }
       changeCounts[key] = counts;
     }
-    syncPlanControls(); render(); rebuildComparison(); render();
+    syncPlanControls(); rebuildComparison(); render();
   });
   let selectedId = data.focalIds?.find((id) => byAircraft.has(id)) ?? aircraft[0].id;
   const interval = byAircraft.get(selectedId).plans.B0.hitIntervals[0];
@@ -178,13 +193,18 @@ function start(data) {
   let baselineChoice = family === "baseline" ? mode : "B0";
   let selectedArm = armFor(mode) ?? "C";
   let fallbackSelection = null;
-  let filter = "all";
   let playing = false;
   let frameRequest = 0;
   let lastFrame = null;
   let trueScale = false;
   let view = "setup", comparisonMethod = "B2", fleetCamera = "orbit";
   let comparisonGroups = [], comparisonRows = new Map();
+  let cohort = null;
+  let comparisonReturnView = 'fleet';
+  let comparisonAircraft = [];
+  let compareFleetTime = null;
+  let pinnedAircraft = null;
+  let pinnedSource = null;
 
   const viewer = createViewer(dom.scene, data, selectAircraft);
   const aircraftPreview = createAircraftPreview(dom.preview);
@@ -195,48 +215,144 @@ function start(data) {
   sharedSelect.value=selectedId;
   sharedSelect.addEventListener('change',()=>{selectAircraft(sharedSelect.value);setInspectorOpen(false);});
   let aircraftScope = 'changed', chooserKey = '';
+  let listedAircraft = aircraft;
   const scopeSelect = document.createElement('select'); scopeSelect.id = 'aircraft-scope';
-  const aircraftPicker=document.createElement('div');aircraftPicker.className='aircraft-picker';
-  const actionLabel=document.createElement('label');actionLabel.className='aircraft-action-label';
-  const actionText=document.createElement('span');actionLabel.append(actionText,scopeSelect);
-  sharedLabel.before(aircraftPicker);aircraftPicker.append(actionLabel,sharedLabel);
-  function scopedAircraft() {
-    if (view === 'setup' || aircraftScope === 'all') return aircraft;
-    const keys = view === 'compare' ? comparisonKeys() : [mode];
-    if (aircraftScope === 'none') return aircraft.filter(a=>keys.every(key=>a.plans[key]?.change==='none'));
-    return aircraft.filter(a => keys.some(key => {
-      const change = a.plans[key]?.change;
-      return aircraftScope === 'changed' ? change && change !== 'none' : change === aircraftScope;
-    }));
+  scopeSelect.setAttribute('aria-describedby', 'fleet-aircraft-description');
+  const fleetAircraftControls = document.createElement('section');
+  fleetAircraftControls.className = 'fleet-aircraft-controls';
+  const fleetAircraftRow = document.createElement('div');
+  fleetAircraftRow.className = 'fleet-aircraft-controls-row';
+  const aircraftScopeLabel = document.createElement('label');
+  aircraftScopeLabel.className = 'fleet-control-label';
+  aircraftScopeLabel.htmlFor = scopeSelect.id;
+  const keepList = document.createElement('button');
+  keepList.type = 'button';
+  keepList.className = 'fleet-keep-action';
+  const aircraftSelectionHost = document.createElement('div');
+  aircraftSelectionHost.id = 'aircraft-selection';
+  const fleetAircraftDescription = document.createElement('p');
+  fleetAircraftDescription.id = 'fleet-aircraft-description';
+  fleetAircraftDescription.className = 'fleet-aircraft-description';
+  fleetAircraftDescription.setAttribute('role', 'status');
+  fleetAircraftRow.append(aircraftScopeLabel, scopeSelect, keepList, aircraftSelectionHost, cohortAction);
+  fleetAircraftControls.append(fleetAircraftRow, fleetAircraftDescription);
+  experimentPanel.after(fleetAircraftControls);
+
+  function fixAircraftList(flights, sourceScope = null, seekToEntry = false) {
+    const startingSelection = !pinnedAircraft?.length;
+    pinnedAircraft = flights;
+    pinnedSource = sourceScope ? {
+      mode, scope: sourceScope, run: family === 'MAPPO' ? trainingSelect.value : '',
+    } : null;
+    setPlaying(false);
+    if (seekToEntry && startingSelection && flights.length && !flights.some(isAirborneInPlan)) t = firstEntry(flights);
+    chooserKey = '';
+    render();
+  }
+  function followPlanFilter() {
+    pinnedAircraft = null;
+    pinnedSource = null;
+    chooserKey = '';
+    render();
+  }
+  const aircraftSelection = createAircraftSelection(aircraftSelectionHost, {
+    translate,
+    onChange(ids, sourceScope) {
+      fixAircraftList(ids.map(id => byAircraft.get(id)), sourceScope, true);
+    },
+  });
+  keepList.addEventListener('click', () => {
+    if (pinnedAircraft !== null) followPlanFilter();
+    else if (listedAircraft.length) fixAircraftList(listedAircraft, aircraftScope);
+  });
+  function isAirborneInPlan(flight) {
+    const points = flight.plans[mode].points;
+    return points[0][0] <= t && t <= points.at(-1)[0];
+  }
+  function firstEntry(flights) {
+    return Math.min(...flights.map(flight => flight.plans[mode].points[0][0]));
+  }
+  function scopedAircraft(scope) {
+    if (scope === 'all') return aircraft;
+    return aircraft.filter(flight => {
+      const change = flight.plans[mode].change;
+      return scope === 'changed' ? change !== 'none' : change === scope;
+    });
+  }
+  function syncFleetAircraftControls() {
+    const fixed = pinnedAircraft !== null;
+    const scopes = new Map(Object.keys(scopeLabels).map(scope => [scope, scopedAircraft(scope)]));
+    const filtered = scopes.get(aircraftScope);
+    const planOptions = document.createElement('optgroup');
+    planOptions.label = translate('aircraftPlanFilter');
+    planOptions.append(...Array.from(scopes, ([scope, flights]) =>
+      new Option(`${translate(scopeLabels[scope])} (${flights.length})`, scope)));
+    scopeSelect.replaceChildren(planOptions);
+    if (fixed) {
+      scopeSelect.prepend(new Option(translate('aircraftFixedOption', { count: pinnedAircraft.length }), 'fixed'));
+    }
+    scopeSelect.value = fixed ? 'fixed' : aircraftScope;
+    aircraftScopeLabel.textContent = translate('aircraftFilter');
+    keepList.textContent = translate(fixed ? 'aircraftFollowPlan' : 'aircraftKeepList');
+    keepList.disabled = !fixed && !filtered.length;
+    if (!fixed) {
+      fleetAircraftDescription.textContent = translate(filtered.length ? 'aircraftFilterHint' : 'aircraftFilterEmpty');
+    } else if (!pinnedAircraft.length) {
+      fleetAircraftDescription.textContent = translate('aircraftFixedEmpty');
+    } else if (pinnedSource) {
+      fleetAircraftDescription.textContent = translate('aircraftFixedFrom', {
+        plan: planName(pinnedSource.mode, pinnedSource.run),
+        filter: translate(scopeLabels[pinnedSource.scope]),
+      });
+    } else {
+      fleetAircraftDescription.textContent = translate('aircraftFixedHint');
+    }
+    aircraftSelection.render(
+      aircraft,
+      pinnedAircraft?.map(flight => flight.id) ?? null,
+      scopes.get('changed').map(flight => flight.id),
+    );
+    return fixed ? pinnedAircraft : filtered;
   }
   function syncAircraftChooser() {
-    const en = document.documentElement.lang.startsWith('en');
-    actionLabel.hidden = view === 'setup';
-    actionText.textContent=en?'Action':'动作';
-    sharedText.textContent=en?'Aircraft ID':'飞机编号';
-    const key = [view, mode, comparisonMethod, aircraftScope, trainingSelect.value, en].join(':');
-    const listed = scopedAircraft();
+    const key = [view, mode, aircraftScope, trainingSelect.value, document.documentElement.lang].join(':');
     if (key !== chooserKey) {
       chooserKey = key;
-      scopeSelect.setAttribute('aria-label',en?'Aircraft filter relative to P₀':'按相对 P₀ 的变化筛选飞机');
-      scopeSelect.replaceChildren(...[['changed',en?'Any change':'全部调整'],['altitude',en?'Altitude only':'仅调整高度'],['speed',en?'Speed only':'仅调整速度'],['both',en?'Altitude + speed':'高度和速度'],['none',en?'Unchanged':'未调整'],['all',en?'All aircraft':'全部飞机']].map(([value,text])=>{
-        const o=document.createElement('option');o.value=value;o.textContent=text;return o;
-      })); scopeSelect.value=aircraftScope;
-      sharedSelect.replaceChildren(...listed.map(a=>{
-        const o=document.createElement('option');o.value=a.id;
-        o.textContent='#'+a.id;return o;
-      }));
-      if (!listed.length) {const o=document.createElement('option');o.textContent=en?'No matching aircraft':'无符合条件飞机';sharedSelect.append(o);}
+      sharedText.textContent = translate('aircraftId');
+      if (view === 'fleet') listedAircraft = syncFleetAircraftControls();
+      else listedAircraft = view === 'compare' ? comparisonAircraft : aircraft;
+
+      const empty = new Option(translate("noMatchingAircraft"), "");
+      sharedSelect.replaceChildren(...(listedAircraft.length
+        ? listedAircraft.map(flight => new Option("#" + flight.id, flight.id))
+        : [empty]));
+      dom.select.replaceChildren(...listedAircraft.map(flight => new Option(translate("aircraftOption", {
+        id: flight.id,
+        change: translate(changeKey[flight.plans[mode].change]),
+      }), flight.id)));
+      const noMatches = !listedAircraft.length;
+      sharedSelect.disabled = dom.select.disabled = noMatches;
+      cohortAction.disabled = dom.toggleInspector.disabled = view === 'fleet' && noMatches;
+      if (noMatches) setInspectorOpen(false);
     }
-    sharedSelect.disabled=!listed.length; compareAction.disabled=view!=='compare'&&!listed.length;
-    if (listed.length && !listed.some(a=>a.id===selectedId)) {
-      selectedId=listed[0].id; setupUI.state.id=selectedId;dom.select.value=selectedId;
-      if(view==='compare'){setPlaying(false);t=playbackStart();rebuildComparison();}
+    if (listedAircraft.length && !listedAircraft.some(flight => flight.id === selectedId)) {
+      const airborne = view === 'fleet' && listedAircraft.find(isAirborneInPlan);
+      selectedId = (airborne || listedAircraft[0]).id;
+      setupUI.state.id = selectedId;
+      if (view === 'compare') {
+        setPlaying(false);
+        t = playbackStart();
+        rebuildComparison();
+      }
     }
-    sharedSelect.value=listed.length?String(selectedId):sharedSelect.options[0].value;
-    return listed;
+    sharedSelect.value = dom.select.value = listedAircraft.length ? String(selectedId) : "";
+    return listedAircraft;
   }
-  scopeSelect.onchange=()=>{aircraftScope=scopeSelect.value;filter='all';setInspectorOpen(false);syncPlanControls();render();};
+  scopeSelect.onchange = () => {
+    if (scopeSelect.value === 'fixed') return;
+    aircraftScope = scopeSelect.value;
+    followPlanFilter();
+  };
   const previewColors = { none: 0x526a80, altitude: 0x2563b8, speed: 0x7c3ab1, both: 0x08745d };
   function syncScaleControls() {
     dom.trueScale.setAttribute("aria-pressed", trueScale);
@@ -296,6 +412,34 @@ function start(data) {
     return ["B0", "B1", ...["C", "CF", "CT", "CFT"].map(arm => comparisonMethod + "-" + arm)].filter(key => availablePlans.has(key));
   }
 
+  function planName(key, run) {
+    const name = legacyPlanLabels[key]
+      ? translate(legacyPlanLabels[key])
+      : translate("planSummary", {
+        algorithm: translate(familyLabels[familyFor(key)]),
+        arm: shortPlanName(key),
+      });
+    return run ? name + translate("cohortRun", { run }) : name;
+  }
+
+  function renderCohort() {
+    byId("cohort-source").textContent = translate(cohort.sourceScope ? "cohortSource" : "cohortSourceManual", {
+      count: cohort.flights.length,
+      plan: planName(cohort.sourceMode, cohort.sourceRun),
+      filter: cohort.sourceScope ? translate(scopeLabels[cohort.sourceScope]) : '',
+    });
+    const columns = planIds.map(key => ({
+      key,
+      label: shortPlanName(key),
+      family: translate(familyLabels[familyFor(key)]),
+    }));
+    renderCohortComparison(cohortTable, cohort.flights, columns, translate, id => {
+      selectedId = id;
+      switchView('compare');
+      sharedSelect.focus();
+    });
+  }
+
   function rebuildComparison() {
     if (view !== "compare") return;
     const flight = byAircraft.get(selectedId), keys = comparisonKeys();
@@ -339,32 +483,41 @@ function start(data) {
   let demoFlight=null,demoFlightKey="";
   const playbackStart=()=>view==='compare'?Math.min(...comparisonKeys().map(key=>byAircraft.get(selectedId).plans[key].points[0][0])):0;
   const playbackEnd=()=>view==='compare'?Math.max(...comparisonKeys().map(key=>byAircraft.get(selectedId).plans[key].points.at(-1)[0])):end;
-  compareRestart.addEventListener('click',()=>{setPlaying(false);t=playbackStart();render();});
+  const replayStart = () => view === 'fleet' && pinnedAircraft?.length ? firstEntry(pinnedAircraft) : playbackStart();
+  compareRestart.addEventListener('click',()=>{setPlaying(false);t=replayStart();render();});
   function syncViewControls() {
     if(view!=="setup")setupUI.pauseDemo();
-    playbackUI.render(view);
+    const showingCohort = view === 'cohort';
+    playbackUI.render(showingCohort ? 'setup' : view);
     const comparing = view === "compare";
-    (comparing?byId('comparison-controls'):workspace).append(timeline);
-    compareRestart.hidden=!comparing;
-    compareAction.hidden=view==='setup';
-    inspectorCompare.hidden=view!=='fleet';
     const setting = view === "setup";
+    const fleet = view === 'fleet';
+    (comparing?byId('comparison-controls'):workspace).append(timeline);
+    compareAction.hidden = !comparing;
+    cohortBack.hidden = !showingCohort;
+    cohortBack.textContent = translate("cohortBackToFleet");
+    cohortAction.textContent = translate("cohortOpen");
+    sharedLabel.hidden = !setting && !comparing;
+    fleetAircraftControls.hidden = !fleet;
+    trainingControl.classList.toggle('plan-training-control', fleet);
+    if (fleet) methodSwitch.append(trainingControl);
+    else toolbar.insertBefore(trainingControl, toolbar.querySelector('.scene-context'));
+    context.hidden = workspace.hidden = showingCohort;
+    cohortResults.hidden = !showingCohort;
     setupUI.host.hidden=!setting;
     setupUI.state.id=selectedId;
     setupUI.render();
-    byId("shared-aircraft").value=selectedId;
-    byId("shared-aircraft-label").textContent=document.documentElement.lang.startsWith("en")?"Aircraft":"飞机";
+    sharedSelect.value = selectedId;
     byId("setup-view").textContent=document.documentElement.lang.startsWith("en")?"Scene demo":"场景演示";
     document.body.dataset.view = view;
     dom.scene.closest(".workspace").dataset.view = view;
-    document.querySelector('.experiment-panel').hidden = document.querySelector('.results').hidden = comparing || setting;
+    experimentPanel.hidden = document.querySelector('.results').hidden = !fleet;
     for (const id of ["comparison-controls", "comparison-caption", "comparison-results", "comparison-legend", "compare-summary", "comparison-source"]) byId(id).hidden = !comparing;
     document.querySelector('.stage-caption').hidden = comparing || setting;
     document.querySelector('.stage-bottom > .legend:not(.comparison-legend)').hidden = comparing || setting;
-    document.querySelector('.change-filters').hidden = comparing || setting;
-    dom.toggleInspector.hidden = dom.planSummary.hidden = dom.planSource.hidden = comparing || setting;
+    dom.toggleInspector.hidden = dom.planSummary.hidden = dom.planSource.hidden = comparing || setting || showingCohort;
     for (const button of document.querySelectorAll('[data-view]')) {
-      if (button.tagName === "BUTTON") button.setAttribute("aria-pressed", (button.dataset.view === view)||(button.dataset.view==='fleet'&&comparing));
+      if (button.tagName === "BUTTON") button.setAttribute("aria-pressed", (button.dataset.view === view)||(button.dataset.view==='fleet'&&(comparing||showingCohort)));
     }
     const side = document.querySelector('[data-camera="profile"]');
     side.dataset.i18n = comparing ? "comparisonSide" : "cameraProfile";
@@ -379,26 +532,60 @@ function start(data) {
   }
 
   function switchView(next) {
-    if (view === next || !["fleet", "compare", "setup"].includes(next)) return;
+    if (view === next || !["fleet", "compare", "setup", "cohort"].includes(next)) return;
+    const previous = view;
     setPlaying(false); setInspectorOpen(false);
+    aircraftSelection.close();
     document.querySelector('.display-settings').open = false;
     viewer.setSetup(null);
     view = next;
-    filter = "all";
     if (view === "compare") {
-      filter = "all";
+      comparisonReturnView = previous === 'cohort' ? 'cohort' : 'fleet';
+      comparisonAircraft = previous === 'cohort' ? cohort.flights : listedAircraft;
+      compareFleetTime = previous === 'fleet' ? t : null;
       comparisonMethod = family === "MAPPO" ? "MAPPO" : "B2";
       t=playbackStart();
-    } else viewer.setComparison(null);
+    } else {
+      viewer.setComparison(null);
+      if (view === 'fleet') {
+        if (previous === 'cohort' || (previous === 'compare' && comparisonReturnView === 'cohort')) t = cohort.time;
+        else if (previous === 'compare' && compareFleetTime !== null) t = compareFleetTime;
+      }
+    }
     syncViewControls(); syncPlanControls(); rebuildComparison();
-    viewer.setView("orbit");
-    syncScaleControls();
-    const cameraName = viewer.getView();
-    cameraButtons.forEach(button => button.setAttribute("aria-pressed", button.dataset.camera === cameraName));
+    if (view !== 'cohort') {
+      viewer.setView("orbit");
+      syncScaleControls();
+      const cameraName = viewer.getView();
+      cameraButtons.forEach(button => button.setAttribute("aria-pressed", button.dataset.camera === cameraName));
+    }
     render();
   }
-  compareAction.addEventListener('click',()=>switchView(view==='compare'?'fleet':'compare'));
-  inspectorCompare.addEventListener('click',()=>switchView('compare'));
+  compareAction.addEventListener('click', () => {
+    switchView(comparisonReturnView);
+    if (view === 'cohort') cohortTable.querySelector(`[data-cohort-aircraft="${selectedId}"]`)?.focus();
+    else dom.toggleInspector.focus();
+  });
+  cohortBack.addEventListener('click', () => {
+    switchView('fleet');
+    cohortAction.focus();
+  });
+  cohortAction.addEventListener('click', () => {
+    if (view !== 'fleet' || !listedAircraft.length) return;
+    cohort = {
+      flights: listedAircraft.slice(),
+      sourceMode: pinnedSource?.mode ?? mode,
+      sourceScope: pinnedAircraft === null ? aircraftScope : pinnedSource?.scope,
+      sourceRun: pinnedSource ? pinnedSource.run : family === 'MAPPO' ? trainingSelect.value : '',
+      time: t,
+    };
+    switchView('cohort');
+    byId('cohort-title').focus();
+  });
+  inspectorCompare.addEventListener('click', () => {
+    switchView('compare');
+    sharedSelect.focus();
+  });
   document.querySelectorAll('button[data-view]').forEach(button => button.addEventListener("click", () => switchView(button.dataset.view)));
   dom.compareSelect.addEventListener("change", () => selectAircraft(dom.compareSelect.value));
   dom.compareMethod.addEventListener("change", () => {
@@ -470,33 +657,6 @@ function start(data) {
         : translate("metricUnavailable");
     }
     const counts = changeCounts[mode];
-    if (!counts[filter]) filter = "all";
-    dom.filterSummary.hidden = filter === "all";
-    dom.filterSummary.textContent = filter === "all" ? "" : translate("visibleFilter", { filter: translate(changeKey[filter]) });
-    for (const button of filterButtons) {
-      const kind = button.dataset.changeFilter;
-      button.disabled = counts[kind] === 0;
-      button.setAttribute("aria-pressed", kind === filter);
-      button.querySelector(".change-count").textContent = counts[kind];
-    }
-    const listed = filter === "all" ? aircraft : aircraft.filter((flight) => flight.plans[mode].change === filter);
-    if (!listed.some((flight) => flight.id === selectedId)) {
-      const active = listed.find((flight) => {
-        const points = flight.plans[mode].points;
-        return points[0][0] <= t && t <= points.at(-1)[0];
-      });
-      selectedId = (active ?? listed[0]).id;
-    }
-    dom.select.replaceChildren(...listed.map((flight) => {
-      const option = document.createElement("option");
-      option.value = flight.id;
-      option.textContent = translate("aircraftOption", {
-        id: flight.id,
-        change: translate(changeKey[flight.plans[mode].change]),
-      });
-      return option;
-    }));
-    dom.select.value = selectedId;
     dom.totalChanged.textContent = (aircraft.length - counts.none) + " / " + aircraft.length;
     const deltaPct = statsFor("B0").psi > 0 ? 100 * (stats.psi / statsFor("B0").psi - 1) : undefined;
     dom.psiDelta.textContent = mode === "B0"
@@ -508,14 +668,22 @@ function start(data) {
   }
 
   function render() {
-    const visibleAircraft=syncAircraftChooser();
-    const visibleIds=new Set(visibleAircraft.map(a=>a.id));
     const englishUI=document.documentElement.lang.startsWith('en');
-    trainingControl.hidden = !trainingSeeds.length || view === 'setup' || (view === 'compare' ? comparisonMethod !== 'MAPPO' : family !== 'MAPPO');
+    const showingMappo = view === 'cohort' ? planIds.some(key => familyFor(key) === 'MAPPO')
+      : view === 'compare' ? comparisonMethod === 'MAPPO' : family === 'MAPPO';
+    trainingControl.hidden = !trainingSeeds.length || view === 'setup' || !showingMappo;
     trainingLabel.textContent = englishUI ? 'Training run' : '训练批次';
-    compareAction.textContent=view==='compare'?(englishUI?'← Back to fleet':'← 返回机队'):(englishUI?'Compare aircraft #'+selectedId:'对照飞机 #'+selectedId);
-    inspectorCompare.textContent=englishUI?'Compare plans for #'+selectedId:'查看 #'+selectedId+' 的方案对照';
-    viewer.setPlaybackDisplay(view==='setup'?null:playbackUI.settings[view],byAircraft.get(selectedId),visibleAircraft,mode,filter,view,aircraftScope);
+    if (view === 'cohort') {
+      renderCohort();
+      return;
+    }
+    const visibleAircraft = syncAircraftChooser();
+    const visibleIds = new Set(visibleAircraft.map(flight => flight.id));
+    const manualReplay = view === 'fleet' && pinnedAircraft !== null;
+    compareAction.textContent = translate(comparisonReturnView === 'cohort' ? "cohortBackToBatch" : "cohortBackToFleet");
+    inspectorCompare.textContent = translate("cohortSelectAircraft", { id: selectedId });
+    viewer.setPlaybackDisplay(view === 'setup' ? null : playbackUI.settings[view],
+      byAircraft.get(selectedId), visibleAircraft, mode, view, trainingSelect.value);
     const frames = [];
     let activeFlight;
     let exposedNow = 0;
@@ -523,6 +691,7 @@ function start(data) {
     for (const flight of aircraft) {
       const plan = flight.plans[mode];
       if (plan.hit) exposedInPlan++;
+      if (view === 'fleet' && !visibleIds.has(flight.id)) continue;
       const points = plan.points;
       if (t < points[0][0] || t > points.at(-1)[0]) continue;
       const [s, z] = interpolate(points, t);
@@ -531,7 +700,7 @@ function start(data) {
         id: flight.id,
         x: flight.x + flight.dx * s / flight.length,
         y: flight.y + flight.dy * s / flight.length,
-        z, heading: flight.route.heading, exposed, change: plan.change,
+        z, heading: flight.route.heading, exposed, change: plan.change, showId: manualReplay,
       };
       frames.push(frame);
       if (exposed) exposedNow++;
@@ -582,7 +751,7 @@ function start(data) {
       setCell('setup-airborne',options.time ? demoFrames.length+' / 96' : '—');
       setCell('setup-selected-mach',(focus.plans.B0.mach+options.mach).toFixed(2));
       setCell('setup-selected-altitude',(focus.plans.B0.points[0][2]+options.altitude).toLocaleString()+' → '+(focus.plans.B0.points.at(-1)[2]+options.altitude).toLocaleString());
-    } else viewer.update(frames.filter(frame=>visibleIds.has(frame.id)&&(filter === "all" || frame.change === filter)), selectedId);
+    } else viewer.update(frames, selectedId);
 
     const flight = byAircraft.get(selectedId);
     const plan = flight.plans[mode];
@@ -607,13 +776,14 @@ function start(data) {
     dom.outcome.textContent = translate(plan.hit ? "planExposed" : "planClear");
     dom.outcomeDot.dataset.hit = plan.hit;
     dom.outcome.parentElement.dataset.hit = plan.hit;
-    dom.airborne.textContent = frames.filter(frame=>visibleIds.has(frame.id)&&(filter === "all" || frame.change === filter)).length + " / " + visibleAircraft.length;
+    dom.airborne.textContent = frames.length + " / " + visibleAircraft.length;
     dom.inHotspots.textContent = translate("exposureCount", { count: exposedNow });
     dom.totalExposed.textContent = exposedInPlan + " / " + aircraft.length;
 
     const start=playbackStart(),finish=playbackEnd();
     dom.range.min=start;dom.range.max=finish;dom.maxTime.textContent='/ '+timecode(finish);
-    compareRestart.textContent=document.documentElement.lang.startsWith('en')?'Restart':'重播';
+    compareRestart.hidden = view !== 'compare' && !(manualReplay && visibleAircraft.length);
+    compareRestart.textContent = translate(manualReplay ? "restartSelectedAircraft" : "restartReplay");
     dom.ticks.hidden=view==='compare';
     const seconds = view==='compare'?t:Math.floor(t);
     dom.range.value = seconds;
@@ -629,7 +799,6 @@ function start(data) {
     selectedId = next;
     setupUI.state.id=next;
     byId("shared-aircraft").value=next;
-    if(filter !== "all" && byAircraft.get(next).plans[mode].change !== filter){filter="all";syncPlanControls();}
     dom.select.value = next;
     if (view === "compare") { setPlaying(false); t=playbackStart(); rebuildComparison(); }
     else if(view === "setup") {setPlaying(false);setupUI.pauseDemo();setupUI.state.demoSeconds=0;setupUI.render();}
@@ -653,7 +822,6 @@ function start(data) {
     if (family === "baseline") baselineChoice = mode;
     else selectedArm = armFor(mode);
     fallbackSelection = fallback;
-    if (filter !== "all" && byAircraft.get(selectedId).plans[mode].change !== filter) filter = "all";
     syncPlanControls();
     render();
   }
@@ -672,7 +840,7 @@ function start(data) {
 
   dom.play.addEventListener("click", () => {
     if (!playing && t >= playbackEnd()) {
-      t = playbackStart();
+      t = replayStart();
       render();
     }
     setPlaying(!playing);
@@ -703,13 +871,6 @@ function start(data) {
       switchPlan(next, matchingArm ? null : { arm: selectedArm, selected: armFor(next), family: targetFamily });
     });
   }
-  for (const button of filterButtons) {
-    button.addEventListener("click", () => {
-      filter = button.dataset.changeFilter;
-      syncPlanControls();
-      render();
-    });
-  }
   for (const button of cameraButtons) {
     button.addEventListener("click", () => {
       viewer.setView(button.dataset.camera);
@@ -730,7 +891,7 @@ function start(data) {
     render();
   }
   refreshLanguage();
-  dom.range.disabled = dom.play.disabled = dom.select.disabled = false;
+  dom.range.disabled = dom.play.disabled = false;
   dom.message.hidden = true;
   return refreshLanguage;
 }

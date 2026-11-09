@@ -162,7 +162,6 @@ body[data-view="setup"] #setup-parameters { display:flex; flex-direction:column;
 #setup-parameters .environment-content { min-height:100px; }
 .compare-aircraft-action { border:1px solid #63849c; border-radius:4px; padding:7px 11px; color:#edf5fc; background:#30566f; cursor:pointer; font-size:12px; }
 .compare-aircraft-action:hover { background:#416c89; }
-#inspector-compare { display:block; width:100%; margin:0 0 14px; color:#204d72; background:#edf3f8; border-color:#bdcedd; }
 body[data-view="setup"] .display-settings { display:block!important; }
 #setup-layer-controls { display:none; }
 body[data-view="setup"] #setup-layer-controls { display:block; }
@@ -242,13 +241,6 @@ body[data-view="compare"] .scene-context { display:none; }
 #environment-layer-box>header,#setup-parameters header>span,.stage>.scene-stats .section-label { color:#003D7C; }
 .camera button[aria-pressed="true"] { color:#003D7C; border-color:#9fb9d4; background:#e8f0f8; }
 
-#aircraft-scope {background:#164f89;color:#fff;border:1px solid #7295b9;padding:5px 8px;border-radius:3px;font-size:12px;max-width:145px;}
-
-.aircraft-picker {display:grid;gap:6px;padding:3px 0;}
-.aircraft-picker label {display:grid;grid-template-columns:64px minmax(120px,1fr);align-items:center;gap:8px;font-size:12px;}
-.aircraft-picker label[hidden] {display:none;}
-.aircraft-picker label > span {color:#d8e6f4;}
-.aircraft-picker #aircraft-scope,.aircraft-picker #shared-aircraft {width:100%;max-width:none;min-width:135px;font-size:12px;padding:4px 8px;}
 .demo-scrubber #demo-rate {width:70px;flex:0 0 70px;}
 
 .action-matrix {margin-bottom:12px;}

@@ -1,4 +1,4 @@
-import { staticMessages } from "./locale-static.js?v=layershub1";
+import { staticMessages } from "./locale-static.js?v=selectionflow1";
 
 const dynamicMessages = {
   zh: {

@@ -1,0 +1,266 @@
+.cohort-results {
+  min-width: 0;
+  padding: 16px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.cohort-heading { margin-bottom: 12px; }
+
+.cohort-heading h2 {
+  margin: 0 0 6px;
+  font-size: clamp(17px, 2vw, 21px);
+  font-weight: 650;
+}
+
+.cohort-heading p {
+  margin: 4px 0 0;
+  color: var(--quiet);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cohort-heading #cohort-source { color: var(--subtle); font-weight: 600; }
+
+.cohort-table-scroll {
+  max-width: 100%;
+  max-height: min(58vh, 36rem);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.cohort-table-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cohort-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cohort-table :is(th, td) {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.cohort-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  color: var(--ink);
+}
+
+.cohort-table thead th {
+  background: var(--selected);
+  border-bottom-color: var(--line);
+  font-weight: 650;
+}
+
+.cohort-table thead tr + tr th {
+  background: var(--surface-soft);
+}
+
+.cohort-column-count {
+  display: block;
+  margin-top: 2px;
+  color: var(--quiet);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.cohort-table :is(thead tr:first-child, tbody tr) > th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.cohort-table tbody tr { background: var(--panel); }
+.cohort-table tbody tr:nth-child(even) { background: var(--surface-soft); }
+.cohort-table tbody tr:focus-within { background: var(--selected); }
+.cohort-table tbody th { background: inherit; }
+.cohort-table tbody tr:last-child > * { border-bottom: 0; }
+.cohort-table .cohort-group-start { border-left: 1px solid var(--line); }
+
+.cohort-table button {
+  min-width: 42px;
+  min-height: 30px;
+  padding: 2px 6px;
+  border: 1px solid var(--selected-line);
+  border-radius: 3px;
+  color: var(--accent);
+  background: var(--panel);
+  font-weight: 650;
+}
+
+.cohort-table button:hover { background: var(--hover); }
+.cohort-table td { color: var(--quiet); }
+.cohort-table td[data-change="altitude"] { color: var(--altitude-change); }
+.cohort-table td[data-change="speed"] { color: var(--speed-change); }
+.cohort-table td[data-change="both"] { color: var(--both-change); }
+.cohort-table .cohort-delta { display: block; font-weight: 600; line-height: 1.4; }
+.cohort-table .cohort-zero { color: var(--quiet); font-weight: 400; }
+
+@media (max-width: 520px) {
+  .cohort-results { padding: 12px; }
+  .cohort-table :is(th, td) { padding-inline: 8px; }
+}
+
+.fleet-aircraft-controls {
+  position: relative;
+  margin-top: 8px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+}
+
+.fleet-aircraft-controls:has(.aircraft-selection[open]) { z-index: 11; }
+
+.fleet-aircraft-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 9px;
+}
+
+.fleet-control-label {
+  margin-right: 2px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.fleet-aircraft-controls :is(#aircraft-scope, .fleet-keep-action, .fleet-table-action, summary) {
+  min-height: 32px;
+  max-width: 100%;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--accent);
+  background: var(--panel);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.fleet-aircraft-controls #aircraft-scope { min-width: 0; font-weight: 500; }
+.fleet-aircraft-controls .fleet-keep-action { border-color: var(--selected-line); background: var(--selected); }
+.fleet-aircraft-controls .fleet-table-action { margin-inline-start: auto; }
+.fleet-aircraft-controls :is(button:not(:disabled), summary):hover,
+.fleet-aircraft-controls .aircraft-selection[open] > summary { background: var(--hover); }
+
+.fleet-aircraft-description {
+  margin: 6px 0 0;
+  color: var(--quiet);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#aircraft-selection { position: relative; max-width: 100%; }
+
+.aircraft-selection-panel {
+  position: absolute;
+  inset-block-start: calc(100% + 5px);
+  inset-inline-start: 0;
+  width: 280px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink);
+  background: var(--panel);
+  box-shadow: 0 8px 24px #142b4026;
+}
+
+.aircraft-selection-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+
+.aircraft-selection-actions button {
+  padding: 4px 8px;
+  border: 1px solid var(--selected-line);
+  border-radius: 3px;
+  color: var(--accent);
+  background: var(--surface-soft);
+  font-size: 12px;
+}
+
+.aircraft-selection-actions button:hover:not(:disabled) { background: var(--selected); }
+.aircraft-selection fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+
+.aircraft-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+  gap: 3px;
+  max-height: min(240px, 45vh);
+  padding: 2px;
+  overflow: auto;
+}
+
+.aircraft-selection-grid label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 30px;
+  padding: 2px;
+  border-radius: 3px;
+  color: var(--ink);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.aircraft-selection-grid label:is(:hover, :has(:checked)) { background: var(--selected); }
+.aircraft-selection-grid input { margin: 0; accent-color: var(--accent); }
+.aircraft-selection-empty { margin: 0; color: var(--quiet); font-size: 12px; }
+.aircraft-selection-hint { margin: 7px 0 0; color: var(--quiet); font-size: 11px; line-height: 1.4; }
+
+.method-switch:has(.plan-training-control:not([hidden])) {
+  align-items: center;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.method-switch .plan-training-control {
+  gap: 6px;
+  margin-inline-start: 5px;
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid var(--line);
+  color: var(--subtle);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.plan-training-control select {
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink);
+  background: var(--panel);
+}
+
+@media (max-width: 800px) {
+  .fleet-aircraft-controls #aircraft-selection { position: static; }
+  .aircraft-selection-panel {
+    inset-inline-start: auto;
+    inset-inline-end: 0;
+    width: min(280px, 100%);
+  }
+}
+
+@media (max-width: 520px) {
+  .fleet-aircraft-controls .fleet-table-action { margin-inline-start: 0; }
+  .method-switch .plan-training-control { margin-inline-start: 0; }
+  [data-view="fleet"] .timeline:has(#compare-restart:not([hidden])) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  [data-view="fleet"] .timeline:has(#compare-restart:not([hidden])) .scrub {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+}
